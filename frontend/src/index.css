@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+/* Scholyx global cosmic theme: these project-specific classes were absent
+   from the exported source, leaving white page backgrounds and transparent cards. */
+:root { color-scheme: dark; }
+html { min-height: 100%; background: #050816; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 50% -15%, #12193c 0%, #090e22 39%, #050816 78%);
+  color: #e2e8f0;
+}
+#root { min-height: 100vh; }
+.cosmic-grid {
+  background-color: transparent;
+  background-image:
+    linear-gradient(rgba(99, 102, 241, .055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, .055) 1px, transparent 1px);
+  background-size: 52px 52px;
+}
+.cosmic-card {
+  background: linear-gradient(135deg, rgba(17, 24, 48, .94), rgba(9, 13, 30, .97));
+  border-color: rgba(99, 102, 241, .22);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, .18);
+}
+.cosmic-glass {
+  background: rgba(12, 16, 35, .9);
+  border-color: rgba(99, 102, 241, .25);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+.font-space {
+  font-family: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+@keyframes scholyx-fade-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn { animation: scholyx-fade-in .3s ease-out both; }
+.interactive-bounce { transition: transform .2s ease, filter .2s ease; }
+.interactive-bounce:hover { transform: translateY(-2px); filter: brightness(1.08); }
+.interactive-bounce:active { transform: translateY(0) scale(.98); }
+.box-lift { transition: transform .25s ease, box-shadow .25s ease; }
+.box-lift:hover { transform: translateY(-3px); box-shadow: 0 18px 48px rgba(0, 0, 0, .25); }
+.animated-cosmic-gradient {
+  background-image:
+    radial-gradient(ellipse at 70% 15%, rgba(79, 70, 229, .15), transparent 55%),
+    radial-gradient(ellipse at 12% 88%, rgba(6, 182, 212, .1), transparent 50%),
+    linear-gradient(135deg, rgba(17, 24, 48, .95), rgba(9, 13, 30, .98));
+}
+/* ==========================================================================
+   Scholyx 3D Flashcard Flipping (Hộp Flashcard 3D Lật Mặt)
+   ========================================================================== */
+.flip-container {
+  perspective: 1000px;
+  -webkit-perspective: 1000px;
+}
+
+.flip-container .flipper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+.flip-container .flipper.flipped {
+  transform: rotateY(180deg);
+}
+
+.flip-container .front,
+.flip-container .back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+.flip-container .front {
+  transform: rotateY(0deg);
+  z-index: 2;
+}
+
+.flip-container .back {
+  transform: rotateY(180deg);
+  z-index: 1;
+}
+
+.flip-container .flipper.flipped .front {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.flip-container .flipper.flipped .back {
+  z-index: 2;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn { animation: none; }
+  .box-lift, .interactive-bounce { transition: none; }
+  .box-lift:hover, .interactive-bounce:hover { transform: none; }
+  .flip-container .flipper {
+    transition: transform 0.05s ease !important;
+  }
+}
+
+
+
+/* Rich educational content: deliberately scoped to lesson body (no changes to cosmic theme). */
+.scholyx-rich-content h1,.scholyx-rich-content h2,.scholyx-rich-content h3{font-weight:750;color:#e2e8f0;margin:1.4em 0 .6em}
+.scholyx-rich-content h1{font-size:1.45rem}.scholyx-rich-content h2{font-size:1.25rem}.scholyx-rich-content h3{font-size:1.1rem}
+.scholyx-rich-content p{margin:.8em 0}.scholyx-rich-content ul{list-style:disc;padding-left:1.5rem;margin:.7em 0}
+.scholyx-rich-content ol{list-style:decimal;padding-left:1.5rem;margin:.7em 0}
+.scholyx-rich-content li{margin:.35em 0}.scholyx-rich-content strong{color:#f8fafc;font-weight:700}
+.scholyx-rich-content table{display:block;overflow-x:auto;border-collapse:collapse;max-width:100%}
+.scholyx-rich-content th,.scholyx-rich-content td{border:1px solid #334155;padding:.5rem .75rem}
+.scholyx-rich-content .katex-display{overflow-x:auto;overflow-y:hidden;max-width:100%;padding:.45rem 0}
+.scholyx-rich-content code{overflow-wrap:anywhere}
