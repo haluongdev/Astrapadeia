@@ -1,0 +1,59 @@
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+*.pem
+*.key
+
+# Dependencies and build
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+
+# Database and backups
+*.dump
+*.sql.gz
+*.backup
+*.bak
+*Backup*/
+*Recovery*/
+*.zip
+
+# Playwright reports
+test-results/
+playwright-report/
+playwright-report-gd3/
+**/test-results/
+**/playwright-report*/
+
+# Logs
+*.log
+logs/
+
+# Local backup files
+*.backup-*
+*.bak-*
+*.old
+*.orig
+
+# Generated test results
+tests/gd3/gd3-results.json
+
+# Local secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example

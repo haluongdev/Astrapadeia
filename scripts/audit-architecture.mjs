@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+
+const read = path => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+const registry = read('src/routes/screenRegistry.ts');
+const app = read('src/App.tsx');
+const learning = read('src/components/LearningModule.tsx');
+const context = read('src/context/AppContext.tsx');
+const ids = [...registry.matchAll(/^\s+id: '([^']+)'/gm)].map(m => m[1]);
+const paths = [...registry.matchAll(/^\s+path: '([^']+)'/gm)].map(m => m[1]);
+assert.equal(ids.length, 30);
+assert.equal(new Set(ids).size, ids.length);
+assert.equal(new Set(paths).size, paths.length);
+for (const id of ids) assert.ok(app.includes(`activeScreenId === '${id}'`), `No display branch for ${id}`);
+assert.ok(context.includes('hashchange'), 'Browser history route sync is missing');
+assert.ok(context.includes('hashForScreen'), 'Centralized URL navigation is missing');
+assert.ok(learning.includes('<RichLessonContent content={activeLesson.content} />'), 'Lesson text is not rich-rendered');
+assert.ok(learning.includes("navigateTo('lesson-detail', { lessonId: lesson.id })"), 'Lesson navigation must include an ID');
+console.log('PASS: 30 route IDs, paths, render branches, hash navigation, and lesson renderer contract.');
+console.log('NOTE: This is static analysis, not a browser end-to-end test.');
