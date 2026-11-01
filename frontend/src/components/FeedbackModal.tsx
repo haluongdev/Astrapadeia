@@ -39,7 +39,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
 
         <div className="flex items-center gap-2 text-xs uppercase font-bold text-cyan-400">
           <MessageSquare className="w-4 h-4" />
-          <span>Hỗ Trợ & Góp Ý Sản Phẩm (FR-FB-02)</span>
+          <span>Hỗ Trợ & Góp Ý Sản Phẩm</span>
         </div>
         <h3 className="text-xl font-bold text-white font-space">
           Gửi Phản Hồi Cho Ban Quản Trị

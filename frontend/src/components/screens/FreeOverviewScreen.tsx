@@ -174,7 +174,7 @@ export const FreeOverviewScreen: React.FC<FreeOverviewScreenProps> = ({
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-amber-400" />
                 <h3 className="font-bold text-base text-white font-space">
-                  Chẩn Đoán Điểm Yếu & Khuyến Nghị Khắc Phục (BR-PERS-02)
+                  Chẩn Đoán Điểm Yếu & Khuyến Nghị Khắc Phục
                 </h3>
               </div>
               <button

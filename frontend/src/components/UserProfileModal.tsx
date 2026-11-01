@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { authApi } from '../services/authApi';
 import {
   User,
   Settings,
@@ -22,35 +23,106 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
   const { currentUser, updateProfile, subjects } = useApp();
 
   const [name, setName] = useState<string>(currentUser.name);
+  const [className, setClassName] = useState('');
+  const [avatarDataUrl, setAvatarDataUrl] = useState('');
   const [school, setSchool] = useState<string>(currentUser.school);
   const [province, setProvince] = useState<string>(currentUser.province);
   const [grade, setGrade] = useState<10 | 11 | 12>(currentUser.grade);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(currentUser.targetSubjects);
   const [targetScores, setTargetScores] = useState<Record<string, number>>(currentUser.targetScores);
   const [allowAIPersonalization, setAllowAIPersonalization] = useState<boolean>(currentUser.allowAIPersonalization);
-  const [activeTab, setActiveTab] = useState<'profile' | 'targets' | 'privacy'>('profile');
+  const [isBusy, setIsBusy] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [realProfile, setRealProfile] = useState(false);
+  const [profileError, setProfileError] = useState('');
   const [feedbackNotice, setFeedbackNotice] = useState<{ type: 'success' | 'info'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setIsLoaded(false);
+    setRealProfile(false);
+    setProfileError('');
+    authApi.profile().then((result: any) => {
+      if (cancelled) return;
+      const p = result.profile;
+      setName(result.user?.fullName ?? currentUser.name);
+      setClassName(p?.class_name ?? '');
+      setAvatarDataUrl(p?.avatar_url ?? '');
+      setGrade(result.user?.grade ?? currentUser.grade);
+      setSchool(p?.school ?? '');
+      setProvince(p?.province ?? '');
+      setSelectedSubjects(Array.isArray(p?.selected_subjects) ? p.selected_subjects : []);
+      setTargetScores(p?.target_scores && typeof p.target_scores === 'object' ? p.target_scores : {});
+      setAllowAIPersonalization(Boolean(p?.ai_personalization));
+      // V1.2: synchronize all profile consumers when the modal reads PostgreSQL.
+      if (p && result.user?.id === currentUser.id) {
+        updateProfile({
+          school: p.school ?? '',
+          province: p.province ?? '',
+          targetSubjects: Array.isArray(p.selected_subjects) ? p.selected_subjects : [],
+          targetScores: p.target_scores && typeof p.target_scores === 'object' ? p.target_scores : {},
+          allowAIPersonalization: Boolean(p.ai_personalization)
+        });
+      }      setRealProfile(Boolean(p));
+      setIsLoaded(true);
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      setProfileError(error instanceof Error ? error.message : 'Không thể tải hồ sơ');
+      setIsLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [isOpen, currentUser.id]);
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
-    updateProfile({
-      name,
-      school,
-      province,
-      grade,
-      targetSubjects: selectedSubjects,
-      targetScores,
-      allowAIPersonalization
-    });
-    setFeedbackNotice({
-      type: 'success',
-      text: 'Đã cập nhật hồ sơ và mục tiêu học tập thành công!'
-    });
-    setTimeout(() => {
-      setFeedbackNotice(null);
-      onClose();
-    }, 1200);
+  const handleSave = async () => {
+    if (!isLoaded || profileError || isBusy) return;
+    setIsBusy(true);
+    setFeedbackNotice(null);
+    try {
+      await authApi.updateProfile({
+        school, province, fullName: name, className, avatarDataUrl: avatarDataUrl || null, selectedSubjects,
+        targetScores: Object.fromEntries(
+          Object.entries(targetScores).filter(([k]) => selectedSubjects.includes(k))
+        ),
+        allowAiPersonalization
+      });
+      // Confirm persistence with a fresh GET before reporting success.
+      const confirmed: any = await authApi.profile();
+      const p = confirmed.profile;
+      const savedScores = Object.fromEntries(
+        Object.entries(targetScores).filter(([k]) => selectedSubjects.includes(k))
+      );
+      const same =
+        p &&
+        p.school === school.trim() &&
+        confirmed.user?.fullName === name.trim() &&
+        (p.class_name ?? '') === className.trim() &&
+        (p.avatar_url ?? '') === avatarDataUrl &&
+        p.province === province.trim() &&
+        JSON.stringify(p.selected_subjects) === JSON.stringify(selectedSubjects) &&
+        Object.keys(savedScores).every(k => Number(p.target_scores?.[k]) === savedScores[k]) &&
+        Boolean(p.ai_personalization) === allowAIPersonalization;
+      if (!same) {
+        throw new Error('Máy chủ chưa trả về đúng hồ sơ vừa lưu. Vui lòng thử lại.');
+      }
+      setRealProfile(true);
+      updateProfile({
+        name: name.trim(),
+        avatar: avatarDataUrl || currentUser.avatar,
+        school, province, targetSubjects: selectedSubjects,
+        targetScores: savedScores, allowAIPersonalization
+      });
+      setFeedbackNotice({ type: 'success', text: 'Đã xác nhận dữ liệu hồ sơ được lưu trong PostgreSQL.' });
+    } catch (error) {
+      setFeedbackNotice({
+        type: 'info',
+        text: error instanceof Error ? error.message : 'Không thể lưu hồ sơ'
+      });
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   const handleToggleSubject = (subId: string) => {
@@ -68,11 +140,49 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
     setTargetScores(prev => ({ ...prev, [subId]: val }));
   };
 
-  const handleRequestDataDeletion = () => {
-    setFeedbackNotice({
-      type: 'info',
-      text: 'Yêu cầu xóa tài khoản đã được ghi nhận vào hệ thống (FR-PRO-06, FR-SYS-06)! Ban quản trị QTV sẽ xử lý trong 72 giờ làm việc.'
-    });
+  const handleExport = async () => {
+    if (isBusy) return;
+    setIsBusy(true);
+    try {
+      const exported = await authApi.exportProfile();
+      const file = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'scholyx-personal-data.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setFeedbackNotice({ type: 'info', text: 'Đã tải bản sao tài khoản và hồ sơ. Lịch sử học tập chưa được hỗ trợ xuất trong phiên bản này.' });
+    } catch (error) {
+      setFeedbackNotice({ type: 'info', text: error instanceof Error ? error.message : 'Không thể xuất dữ liệu.' });
+    } finally { setIsBusy(false); }
+  };
+
+  const handleAvatarFile = (file?: File) => {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 100 * 1024) {
+      setFeedbackNotice({ type: 'info', text: 'Chỉ nhận ảnh PNG, JPEG, WebP tối đa 100 KB.' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setAvatarDataUrl(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRequestDataDeletion = async () => {
+    if (isBusy || !isLoaded || !realProfile) return;
+    if (!window.confirm('Gửi yêu cầu xóa dữ liệu? Yêu cầu này sẽ được quản trị viên xem xét; dữ liệu chưa bị xóa ngay.')) return;
+    setIsBusy(true);
+    try {
+      await authApi.requestDeletion();
+      setFeedbackNotice({ type: 'info', text: 'Đã tiếp nhận yêu cầu xóa dữ liệu; dữ liệu chưa bị xóa.' });
+    } catch (error) {
+      setFeedbackNotice({ type: 'info', text: error instanceof Error ? error.message : 'Không gửi được yêu cầu.' });
+    } finally { setIsBusy(false); }
   };
 
   return (
@@ -88,13 +198,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
         {/* Modal Header */}
         <div className="flex items-center gap-4 border-b border-white/10 pb-5">
           <img
-            src={currentUser.avatar}
+            src={avatarDataUrl || currentUser.avatar}
             alt={currentUser.name}
             className="w-16 h-16 rounded-2xl object-cover ring-2 ring-indigo-500/40"
           />
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-xl font-bold text-white font-space">{currentUser.name}</h3>
+              <h3 className="text-xl font-bold text-white font-space">{name}</h3>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-indigo-500/20 text-cyan-300">
                 Lớp {currentUser.grade}
               </span>
@@ -121,47 +231,41 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
           </div>
         )}
 
-        {/* Tab Selector */}
-        <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-              activeTab === 'profile' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Thông Tin Cá Nhân
-          </button>
-          <button
-            onClick={() => setActiveTab('targets')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-              activeTab === 'targets' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Mục Tiêu & Môn Xét Tuyển
-          </button>
-          <button
-            onClick={() => setActiveTab('privacy')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-              activeTab === 'privacy' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Quyền Riêng Tư (Luật 2025)
-          </button>
-        </div>
-
+        {!isLoaded && (
+          <p role="status" className="text-cyan-300 text-xs">Đang tải hồ sơ từ máy chủ...</p>
+        )}
+        {profileError && (
+          <p role="alert" className="text-rose-300 text-xs">Không thể tải hồ sơ thật: {profileError}. Không thể lưu khi chưa tải thành công.</p>
+        )}
+        {isLoaded && !realProfile && !profileError && (
+          <p role="alert" className="text-rose-300 text-xs">Chưa có hồ sơ học sinh. Nhấn Lưu Thay Đổi để tạo hồ sơ.</p>
+        )}
         {/* Tab 1: Profile Info (FR-PRO-01..03) */}
-        {activeTab === 'profile' && (
+        {(
           <div className="space-y-4 text-xs">
             <div>
               <label className="text-slate-300 font-semibold block mb-1">Họ và tên:</label>
               <input
                 type="text"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                readOnly
+                title="Tên tài khoản hiện chưa hỗ trợ cập nhật từ cửa sổ này"
                 className="w-full p-2.5 rounded-xl bg-[#090d20] border border-white/10 text-white text-xs"
               />
             </div>
 
+            <div>
+              <label className="text-slate-300 font-semibold block mb-1">Ảnh đại diện (PNG, JPEG, WebP; tối đa 100 KB):</label>
+              <input type="file" accept="image/png,image/jpeg,image/webp"
+                onChange={e => handleAvatarFile(e.target.files?.[0])}
+                className="block w-full text-slate-200 text-xs" />
+            </div>
+            <div>
+              <label className="text-slate-300 font-semibold block mb-1">Lớp cụ thể (ví dụ 12A1):</label>
+              <input type="text" maxLength={40} value={className}
+                onChange={e => setClassName(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-[#090d20] border border-white/10 text-white text-xs" />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-slate-300 font-semibold block mb-1">Trường THPT:</label>
@@ -184,12 +288,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
             </div>
 
             <div>
-              <label className="text-slate-300 font-semibold block mb-1">Khối lớp đang học (FR-PRO-03):</label>
+              <label className="text-slate-300 font-semibold block mb-1">Khối lớp đang học:</label>
               <div className="flex gap-2">
                 {[10, 11, 12].map(g => (
                   <button
                     key={g}
-                    onClick={() => setGrade(g as any)}
+                    disabled
+                    title="Cập nhật khối lớp chưa được hỗ trợ bởi API hồ sơ"
                     className={`flex-1 py-2 rounded-xl font-bold border transition ${
                       grade === g
                         ? 'bg-indigo-600 text-white border-cyan-400'
@@ -204,111 +309,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
           </div>
         )}
 
-        {/* Tab 2: Targets and Subjects (FR-PRO-04, 05) */}
-        {activeTab === 'targets' && (
-          <div className="space-y-4 text-xs">
-            <div>
-              <label className="text-slate-300 font-semibold block mb-2">
-                Chọn môn thi tốt nghiệp THPT & tổ hợp xét tuyển:
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {subjects.map(s => {
-                  const isChecked = selectedSubjects.includes(s.id);
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => handleToggleSubject(s.id)}
-                      className={`p-2.5 rounded-xl border text-left font-bold transition flex items-center justify-between ${
-                        isChecked
-                          ? 'bg-indigo-600/30 border-cyan-400 text-white'
-                          : 'bg-[#090d20] border-white/5 text-slate-400'
-                      }`}
-                    >
-                      <span>{s.name}</span>
-                      {isChecked && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-2 border-t border-white/5">
-              <label className="text-slate-300 font-semibold block">
-                Điểm mục tiêu từng môn (Thang điểm 10):
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {selectedSubjects.map(subId => {
-                  const sub = subjects.find(s => s.id === subId);
-                  return (
-                    <div key={subId} className="p-3 rounded-xl bg-[#090d20] border border-white/5 flex items-center justify-between">
-                      <span className="font-bold text-slate-200">{sub?.name}</span>
-                      <input
-                        type="number"
-                        step={0.25}
-                        min={1}
-                        max={10}
-                        value={targetScores[subId] || 8.0}
-                        onChange={e => handleScoreChange(subId, parseFloat(e.target.value))}
-                        className="w-20 p-1.5 rounded-lg bg-[#0c1126] border border-white/10 text-white font-mono font-bold text-center"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tab 3: Privacy and GDPR / VN Law 2025 (FR-PRO-06, 08) */}
-        {activeTab === 'privacy' && (
-          <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-[#090d20] border border-white/5 space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-white block">Cá nhân hóa phản hồi Trợ lý AI (FR-PRO-08):</span>
-                  <span className="text-[11px] text-slate-400">
-                    Cho phép AI sử dụng chủ đề yếu và câu sai để điều chỉnh giải thích dễ hiểu hơn cho riêng bạn.
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={allowAIPersonalization}
-                  onChange={e => setAllowAIPersonalization(e.target.checked)}
-                  className="w-4 h-4 accent-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-[#090d20] border border-white/5 flex items-center justify-between">
-              <div>
-                <span className="font-bold text-white block">Tải về bản sao dữ liệu cá nhân (FR-PRO-07):</span>
-                <span className="text-[11px] text-slate-400">Xuất toàn bộ lịch sử học tập, bài thi và ghi chú dạng JSON/CSV.</span>
-              </div>
-              <button
-                onClick={() => setFeedbackNotice({ type: 'success', text: 'Bản sao dữ liệu cá nhân (JSON) đã được tải xuống máy của bạn!' })}
-                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Tải Về</span>
-              </button>
-            </div>
-
-            <div className="p-4 rounded-xl bg-rose-950/20 border border-rose-500/20 space-y-2">
-              <span className="font-bold text-rose-300 block">Xóa tài khoản & Quyền được lãng quên (FR-PRO-06):</span>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Theo Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15, bạn có quyền yêu cầu xóa toàn bộ dữ liệu cá nhân khỏi máy chủ Scholyx.
-              </p>
-              <button
-                onClick={handleRequestDataDeletion}
-                className="px-3 py-1.5 rounded-lg bg-rose-600/30 hover:bg-rose-600 text-rose-200 text-xs font-bold border border-rose-500/30 transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Yêu Cầu Xóa Tài Khoản & Dữ Liệu</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Footer actions */}
         <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
           <button
@@ -319,6 +319,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
           </button>
           <button
             onClick={handleSave}
+            disabled={!isLoaded || Boolean(profileError) || isBusy}
             className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30 transition"
           >
             Lưu Thay Đổi

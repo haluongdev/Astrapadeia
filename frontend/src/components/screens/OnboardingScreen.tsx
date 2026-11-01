@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Target,
   Sparkles,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { ScreenId } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { authApi } from '../../services/authApi';
 
 interface OnboardingScreenProps {
   onNavigate: (screenId: ScreenId) => void;
@@ -44,23 +45,107 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onNavigate }
   };
 
   const [isSaved, setIsSaved] = useState<boolean>(false);
+  const [isBusy, setIsBusy] = useState(false);
+  const [loadComplete, setLoadComplete] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  // SCHOLYX_ONBOARDING_POSTGRES_V13
+  useEffect(() => {
+    let active = true;
+    setIsSaved(false);
+    setLoadComplete(false);
+    setSaveError('');
+    if (currentUser.role !== 'student' || currentUser.id === 'guest') {
+      setSaveError('Vui lòng đăng nhập tài khoản Student để lưu mục tiêu.');
+      return;
+    }
+    authApi.profile().then((result: any) => {
+      if (!active) return;
+      if (result.user?.id !== currentUser.id) throw new Error('Phiên tài khoản đã thay đổi');
+      const p = result.profile;
+      if (p) {
+        const scores = p.target_scores && typeof p.target_scores === 'object'
+          ? p.target_scores : {};
+        const { __scholyxStudyHours, ...subjectScores } = scores;
+        setSelectedSubjects(Array.isArray(p.selected_subjects) ? p.selected_subjects : []);
+        setTargetScores(subjectScores);
+        if (typeof __scholyxStudyHours === 'number') setStudyHours(__scholyxStudyHours);
+        if (p.target_exam_date) setExamDate(String(p.target_exam_date).slice(0, 10));
+      }
+      setGrade(result.user?.grade || currentUser.grade || 12);
+      setLoadComplete(true);
+    }).catch((error: unknown) => {
+      if (active) setSaveError(error instanceof Error ? error.message : 'Không tải được mục tiêu từ máy chủ');
+    });
+    return () => { active = false; };
+  }, [currentUser.id]);
 
   const handleScoreChange = (subId: string, val: number) => {
     setTargetScores(prev => ({ ...prev, [subId]: val }));
   };
 
-  const handleCompleteOnboarding = () => {
-    updateProfile({
-      grade,
-      targetSubjects: selectedSubjects,
-      targetScores,
-      studyHoursPerDay: studyHours,
-      examDate
-    });
-    setIsSaved(true);
-    setTimeout(() => {
-      onNavigate('home');
-    }, 1200);
+  const handleCompleteOnboarding = async () => {
+    if (!loadComplete || isBusy || currentUser.role !== 'student') return;
+    setSaveError('');
+    setIsBusy(true);
+    try {
+      const savedScores = Object.fromEntries(
+        Object.entries(targetScores).filter(([key]) => selectedSubjects.includes(key))
+      );
+      const payloadScores = { ...savedScores, __scholyxStudyHours: studyHours };
+      await authApi.updateProfile({
+        grade,
+        selectedSubjects,
+        targetScores: payloadScores,
+        targetExamDate: examDate
+      });
+      const result: any = await authApi.profile();
+      const p = result.profile;
+      const returnedDate = p?.target_exam_date ? String(p.target_exam_date).slice(0, 10) : '';
+      // SCHOLYX_SCREEN06_V14_COMPARE_DIAGNOSTICS
+      // Compare persisted values field by field so a mismatch is actionable.
+      const mismatch: string[] = [];
+      if (result.user?.id !== currentUser.id) mismatch.push('tài khoản');
+      if (Number(result.user?.grade) !== grade) mismatch.push('khối lớp');
+      if (!p) {
+        mismatch.push('bản ghi hồ sơ chưa tồn tại');
+      } else {
+        const remoteSubjects: string[] = Array.isArray(p.selected_subjects) ? p.selected_subjects : [];
+        const expectedSubjects = [...selectedSubjects].sort();
+        if (JSON.stringify([...remoteSubjects].sort()) !== JSON.stringify(expectedSubjects)) {
+          mismatch.push('danh sách môn thi');
+        }
+        if (returnedDate !== examDate) mismatch.push('ngày thi');
+        if (Number(p.target_scores?.__scholyxStudyHours) !== studyHours) {
+          mismatch.push('giờ học mỗi ngày');
+        }
+        for (const [subject, value] of Object.entries(savedScores)) {
+          if (Number(p.target_scores?.[subject]) !== value) {
+            mismatch.push('điểm mục tiêu ' + subject);
+          }
+        }
+      }
+      if (mismatch.length) {
+        throw new Error(
+          'Dữ liệu máy chủ chưa khớp: ' + mismatch.join(', ') +
+          '. Không có xác nhận lưu thành công; vui lòng báo lại các mục này.'
+        );
+      }
+      updateProfile({
+        grade,
+        targetSubjects: selectedSubjects,
+        targetScores: savedScores,
+        studyHoursPerDay: studyHours,
+        examDate
+      });
+      setIsSaved(true);
+      // Return home only after PATCH + GET have confirmed PostgreSQL data.
+      // SCHOLYX_SCREEN06_V16_RESTORE_HOME
+      setTimeout(() => onNavigate('home'), 900);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Không lưu được mục tiêu.');
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   return (
@@ -73,7 +158,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onNavigate }
         <div className="flex items-center justify-center gap-1.5 text-xs uppercase font-bold text-cyan-400">
           <span className="font-mono">Màn hình 06</span>
           <span>•</span>
-          <span>Hồ sơ & Mục tiêu ban đầu (FR-PRO-03..05)</span>
+          <span>Hồ sơ & Mục tiêu ban đầu</span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-space">
           Thiết Lập Mục Tiêu Thi THPT 2026
@@ -220,17 +305,21 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onNavigate }
 
       {/* Submit Action */}
       <div className="pt-2">
+        {saveError && (
+          <p role="alert" className="mb-3 rounded-xl bg-rose-500/15 border border-rose-500/30 p-3 text-xs text-rose-200">{saveError}</p>
+        )}
         {isSaved ? (
           <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-center text-sm font-bold animate-fadeIn">
-            ✓ Khởi tạo mục tiêu thành công! Đang chuyển đến Trang Chủ...
+            ✓ Đã xác nhận mục tiêu được lưu trên máy chủ. Bạn có thể tải lại trang để kiểm tra.
           </div>
         ) : (
           <button
             onClick={handleCompleteOnboarding}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-600 text-slate-950 font-bold text-sm shadow-xl shadow-cyan-500/25 flex items-center justify-center gap-2 hover:brightness-110 transition interactive-bounce cursor-pointer"
+            disabled={!loadComplete || isBusy}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-600 text-slate-950 font-bold text-sm shadow-xl shadow-cyan-500/25 flex items-center justify-center gap-2 hover:brightness-110 transition interactive-bounce cursor-pointer disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4 text-slate-950" />
-            <span>Lưu Mục Tiêu & Khám Phá Không Gian Học Tập</span>
+            <span>{isBusy ? "Đang lưu và xác nhận..." : !loadComplete ? "Đang tải mục tiêu..." : "Lưu Mục Tiêu & Khám Phá Không Gian Học Tập"}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         )}

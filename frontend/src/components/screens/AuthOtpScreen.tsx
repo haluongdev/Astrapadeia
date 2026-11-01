@@ -10,18 +10,55 @@ import {
 } from 'lucide-react';
 import { ScreenId } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { authApi } from '../../services/authApi';
 
 interface AuthOtpScreenProps {
   onNavigate: (screenId: ScreenId) => void;
 }
 
 export const AuthOtpScreen: React.FC<AuthOtpScreenProps> = ({ onNavigate }) => {
-  const { completeRegistrationWithOtp, pendingRegistration } = useApp();
+  const { pendingRegistration, setPendingRegistration } = useApp();
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes per BR-ACC-04
   const [attemptsLeft, setAttemptsLeft] = useState(5);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [devOtpCode, setDevOtpCode] = useState('');
+  const [devOtpLoading, setDevOtpLoading] = useState(false);
+  const [devOtpError, setDevOtpError] = useState('');
+  const [devOtpModalOpen, setDevOtpModalOpen] = useState(false);
+  const devOtpAutoFetchedEmail = useRef<string | null>(null);
+
+  const showDevOtp = async () => {
+    if (!pendingRegistration?.email) return;
+
+    setDevOtpLoading(true);
+    setDevOtpError('');
+    setDevOtpCode('');
+
+    try {
+      const result = await authApi.devOtp(pendingRegistration.email);
+      setDevOtpCode(result.code);
+      setDevOtpModalOpen(true);
+    } catch (error) {
+      setDevOtpError(
+        error instanceof Error ? error.message : 'Cannot load DEV OTP'
+      );
+    } finally {
+      setDevOtpLoading(false);
+    }
+  };
+
+  // SCHOLYX_AUTO_DEV_OTP_POPUP_V1
+  useEffect(() => {
+    const email = pendingRegistration?.email;
+    if (!import.meta.env.DEV || !email) return;
+    if (devOtpAutoFetchedEmail.current === email) return;
+
+    devOtpAutoFetchedEmail.current = email;
+    void showDevOtp();
+  }, [pendingRegistration?.email]);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -55,46 +92,42 @@ export const AuthOtpScreen: React.FC<AuthOtpScreenProps> = ({ onNavigate }) => {
     }
   };
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     const fullOtp = otpDigits.join('');
-
-    if (fullOtp.length < 6) {
-      setErrorMessage('Vui lòng nhập đầy đủ 6 chữ số mã OTP.');
+    if (!/^\d{6}$/.test(fullOtp)) {
+      setErrorMessage('Vui lòng nhập đủ 6 chữ số OTP.');
       return;
     }
-
+    if (!pendingRegistration?.email) {
+      setErrorMessage('Thiếu email đăng ký. Hãy quay lại trang Đăng ký.');
+      return;
+    }
     if (timeLeft <= 0) {
-      setErrorMessage('Mã OTP đã hết hạn sau 10 phút. Vui lòng bấm Gửi lại mã mới (BR-ACC-04).');
+      setErrorMessage('OTP đã hết hạn. Vui lòng đăng ký lại để nhận mã mới.');
       return;
     }
-
-    // Strictly validate against configured demo OTP codes
-    const result = completeRegistrationWithOtp(fullOtp);
-    if (!result.success) {
-      setErrorMessage(result.message);
-      return;
+    setIsVerifying(true);
+    try {
+      await authApi.activate(pendingRegistration.email, fullOtp);
+      setIsSuccess(true);
+      setPendingRegistration(null);
+      // Activation does not create a login session. Explicit login is required.
+      setTimeout(() => onNavigate('auth-login'), 900);
+    } catch (error) {
+      setAttemptsLeft(prev => Math.max(0, prev - 1));
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể xác thực OTP.');
+    } finally {
+      setIsVerifying(false);
     }
-
-    setIsSuccess(true);
-    setTimeout(() => {
-      // Go to screen 06: Hồ sơ & mục tiêu ban đầu
-      onNavigate('onboarding');
-    }, 800);
   };
 
   const [resendNotice, setResendNotice] = useState<string | null>(null);
-
   const handleResend = () => {
-    setTimeLeft(600);
-    setOtpDigits(['', '', '', '', '', '']);
-    setErrorMessage('');
-    inputsRef.current[0]?.focus();
-    setResendNotice('Mã OTP mới (123456) đã được gửi đến email/SĐT của bạn!');
-    setTimeout(() => setResendNotice(null), 4000);
+    setResendNotice('Chức năng gửi lại OTP chưa có API. Vui lòng quay lại Đăng ký để lấy mã mới.');
+    setTimeout(() => setResendNotice(null), 6000);
   };
-
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -110,7 +143,7 @@ export const AuthOtpScreen: React.FC<AuthOtpScreenProps> = ({ onNavigate }) => {
         <div className="flex items-center justify-center gap-1.5 text-xs uppercase font-bold text-cyan-400">
           <span className="font-mono">Màn hình 04</span>
           <span>•</span>
-          <span>Xác thực OTP (BR-ACC-04)</span>
+          <span>Xác thực OTP</span>
         </div>
         <h2 className="text-2xl font-extrabold text-white font-space">
           Kích Hoạt Tài Khoản
@@ -120,27 +153,72 @@ export const AuthOtpScreen: React.FC<AuthOtpScreenProps> = ({ onNavigate }) => {
         </p>
       </div>
 
-      {/* Demo Sandbox notice banner */}
-      <div className="mb-5 p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-xs text-cyan-200">
-        <div className="font-bold text-cyan-300 flex items-center gap-1.5 mb-0.5">
-          <ShieldCheck className="w-4 h-4 text-cyan-400" />
-          <span>Mã OTP Thử Nghiệm Mô Phỏng</span>
+      {import.meta.env.DEV && devOtpModalOpen && devOtpCode && !isSuccess && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Development OTP"
+            className="w-full max-w-sm rounded-3xl border border-cyan-500/40 bg-[#11172e] p-6 shadow-2xl text-center space-y-4"
+          >
+            <div className="text-xs font-bold uppercase tracking-widest text-cyan-300">
+              Scholyx - DEV OTP
+            </div>
+            <p className="text-sm text-slate-300">
+              Ma OTP thu nghiem cua ban:
+            </p>
+            <div className="rounded-2xl bg-black/30 border border-white/10 p-4 text-3xl font-mono font-extrabold tracking-[0.25em] text-cyan-200">
+              {devOtpCode}
+            </div>
+            <p className="text-xs text-slate-400">
+              Hieu luc 10 phut. Chi dung trong moi truong phat trien.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDevOtpModalOpen(false)}
+              className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-3 text-white text-sm font-bold transition"
+            >
+              Dong va nhap OTP
+            </button>
+          </div>
         </div>
-        <p className="text-[11px] text-slate-300">
-          Trong môi trường Sandbox, sử dụng mã OTP: <span className="font-mono font-bold text-amber-300 bg-black/40 px-1.5 py-0.5 rounded">123456</span> hoặc <span className="font-mono font-bold text-amber-300 bg-black/40 px-1.5 py-0.5 rounded">888888</span>.
-        </p>
-      </div>
-
+      )}
       {isSuccess ? (
         <div className="p-6 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-center space-y-3 animate-fadeIn">
           <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
           <h3 className="text-base font-bold text-white">Xác Thực Thành Công!</h3>
           <p className="text-xs text-slate-300">
-            Tài khoản đã chuyển sang trạng thái <strong>Hoạt động</strong>. Đang chuyển tới bước thiết lập mục tiêu học tập ban đầu...
+            Tài khoản đã chuyển sang trạng thái <strong>Hoạt động</strong>. Đang chuyển tới Đăng nhập để bắt đầu học...
           </p>
         </div>
       ) : (
         <form onSubmit={handleVerify} className="space-y-6">
+          {import.meta.env.DEV && pendingRegistration?.email && (
+            <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 space-y-2">
+              <p className="text-xs font-bold text-cyan-300">
+                DEV ONLY - Hop thu OTP thu nghiem
+              </p>
+              <button
+                type="button"
+                disabled={devOtpLoading}
+                onClick={showDevOtp}
+                className="text-xs px-3 py-2 rounded-lg bg-indigo-600 text-white disabled:opacity-50"
+              >
+                {devOtpLoading ? 'Dang lay ma...' : 'Xem OTP thu nghiem'}
+              </button>
+              {devOtpCode && (
+                <div className="text-center text-2xl font-mono font-bold tracking-widest text-cyan-200">
+                  {devOtpCode}
+                </div>
+              )}
+              {devOtpError && (
+                <p className="text-xs text-rose-300">{devOtpError}</p>
+              )}
+              <p className="text-[10px] text-slate-400">
+                Chi dung tren localhost. Khong su dung OTP nay trong production.
+              </p>
+            </div>
+          )}
           {errorMessage && (
             <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -187,7 +265,7 @@ export const AuthOtpScreen: React.FC<AuthOtpScreenProps> = ({ onNavigate }) => {
               className="text-xs text-indigo-300 hover:text-white flex items-center gap-1"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Gửi lại mã</span>
+              <span>Hướng dẫn nhận OTP mới</span>
             </button>
           </div>
 

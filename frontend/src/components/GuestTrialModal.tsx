@@ -51,7 +51,7 @@ export const GuestTrialModal: React.FC<GuestTrialModalProps> = ({
           <>
             <div>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
-                Làm Thử Công Khai (FR-PRAC-13)
+                Làm Thử Công Khai
               </span>
               <h3 className="text-xl font-bold text-white font-space mt-2">
                 Trải Nghiệm Đề Thi Thử THPT Miễn Phí

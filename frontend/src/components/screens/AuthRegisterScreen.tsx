@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ScreenId } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { authApi } from '../../services/authApi';
 
 interface AuthRegisterScreenProps {
   onNavigate: (screenId: ScreenId) => void;
@@ -32,51 +33,52 @@ export const AuthRegisterScreen: React.FC<AuthRegisterScreenProps> = ({ onNaviga
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-
-    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
-      setErrorMessage('Vui lòng nhập đầy đủ tất cả các trường thông tin bắt buộc.');
+    if (!name.trim() || !email.trim() || !password || !confirmPassword) {
+      setErrorMessage('Vui lòng nhập đầy đủ thông tin bắt buộc.');
       return;
     }
-
     if (!email.includes('@') || !email.includes('.')) {
-      setErrorMessage('Định dạng email không hợp lệ (ví dụ: hocsinh@gmail.com).');
+      setErrorMessage('Email không hợp lệ.');
       return;
     }
-
     if (password.length < 8) {
-      setErrorMessage('Mật khẩu phải có tối thiểu 8 ký tự theo quy định BR-ACC-02.');
+      setErrorMessage('Mật khẩu phải có ít nhất 8 ký tự.');
       return;
     }
-
     if (password !== confirmPassword) {
-      setErrorMessage('Mật khẩu xác nhận không trùng khớp với mật khẩu đã nhập.');
+      setErrorMessage('Mật khẩu xác nhận không khớp.');
       return;
     }
-
     if (!agreeTerms || !agreePrivacy) {
-      setErrorMessage('Bạn cần đồng ý với Điều khoản sử dụng và Chính sách bảo vệ dữ liệu cá nhân theo Luật 2025.');
+      setErrorMessage('Bạn cần đồng ý với Điều khoản và Chính sách bảo vệ dữ liệu.');
       return;
     }
-
     setIsLoading(true);
-    // Temporarily store registration data to complete the demo flow (Requirement 4)
-    setPendingRegistration({
-      name: name.trim(),
-      email: email.trim(),
-      grade: parseInt(grade, 10) as 10 | 11 | 12,
-      password: password.trim()
-    });
-
-    setTimeout(() => {
-      setIsLoading(false);
-      // Navigate to OTP verification screen
+    try {
+      await authApi.register({
+        fullName: name.trim(),
+        email: email.trim(),
+        grade: Number(grade) as 10 | 11 | 12,
+        password,
+        agreeTerms,
+        agreePrivacy,
+        termsVersion: '1.0',
+        privacyVersion: '1.0'
+      });
+      // Never persist passwords, even temporarily.
+      setPendingRegistration({ name: name.trim(), email: email.trim(), grade: Number(grade) as 10 | 11 | 12 });
+      setPassword('');
+      setConfirmPassword('');
       onNavigate('auth-otp');
-    }, 400);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Không thể đăng ký. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
+    }
   };
-
   return (
     <div className="max-w-md mx-auto my-6 p-6 sm:p-8 rounded-3xl cosmic-card border border-indigo-500/30 relative shadow-2xl">
       <div className="absolute -top-12 -right-12 w-48 h-48 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />

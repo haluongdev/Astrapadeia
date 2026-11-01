@@ -89,7 +89,7 @@ export const ProgressModule: React.FC<ProgressModuleProps> = ({
             Bản Đồ Năng Lực & Quỹ Đạo Học Tập Thích Ứng
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Đánh giá mức thành thạo theo thuật toán BR-PERS-01 và tự động đề xuất lộ trình tuần
+            Đánh giá mức thành thạo theo thuật toán đánh giá tiến độ và tự động đề xuất lộ trình tuần
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export const ProgressModule: React.FC<ProgressModuleProps> = ({
       <div className="p-6 rounded-2xl cosmic-card border border-white/5 space-y-4">
         <h3 className="font-bold text-base text-white flex items-center gap-2">
           <Target className="w-4 h-4 text-cyan-400" />
-          Khoảng Cách So Với Điểm Mục Tiêu Đại Học (FR-PROG-06)
+          Khoảng Cách So Với Điểm Mục Tiêu Đại Học
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -182,7 +182,7 @@ export const ProgressModule: React.FC<ProgressModuleProps> = ({
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-base text-white flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-emerald-400" />
-              Mức Độ Thành Thạo Chủ Đề (BR-PERS-01)
+              Mức Độ Thành Thạo Chủ Đề
             </h3>
             <span className="text-xs text-slate-400">Đo lường thời gian thực</span>
           </div>

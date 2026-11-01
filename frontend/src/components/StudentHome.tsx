@@ -612,7 +612,7 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
             </h2>
           </div>
           <p className="text-xs text-slate-400 max-w-sm">
-            Thuật toán BR-PERS đề xuất dựa trên mục tiêu điểm số và chẩn đoán năng lực thực tế
+            Hệ thống đề xuất dựa trên mục tiêu điểm số và chẩn đoán năng lực thực tế
           </p>
         </div>
 

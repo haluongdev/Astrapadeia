@@ -104,10 +104,14 @@ export const VIPPaymentModal: React.FC<VIPPaymentModalProps> = ({ isOpen, onClos
 
   // Launch QR Code Checkout
   const handleStartQRCheckout = async () => {
-    const txn = await createPendingQRTransaction(selectedPlanId, paymentMethod, couponCode);
-    setActiveQRTransaction(txn);
-    setTimeLeftSeconds(900);
-    setActiveTab('qr_checkout');
+    try {
+      const txn = await createPendingQRTransaction(selectedPlanId, paymentMethod);
+      setActiveQRTransaction(txn);
+      setTimeLeftSeconds(900);
+      setActiveTab('qr_checkout');
+    } catch(error) {
+      setModalNotice(error instanceof Error ? error.message : 'Không tạo được giao dịch mô phỏng');
+    }
   };
 
   // Simulate Instant Wallet Scan & Approval
@@ -122,7 +126,15 @@ export const VIPPaymentModal: React.FC<VIPPaymentModalProps> = ({ isOpen, onClos
 
     setTimeout(async () => {
       setScanStep(3); // "Ngân hàng ghi nhận thành công!"
-      await simulateScanAndPay(activeQRTransaction.id);
+      try {
+        const success = await simulateScanAndPay(activeQRTransaction.id);
+        if (!success) throw new Error('Không xác nhận được giao dịch mô phỏng');
+      } catch(error) {
+        setIsScanningSimulation(false);
+        setScanStep(0);
+        setModalNotice(error instanceof Error ? error.message : 'Không lưu được giao dịch mô phỏng');
+        return;
+      }
       setIsScanningSimulation(false);
       setScanStep(0);
 
@@ -417,61 +429,16 @@ export const VIPPaymentModal: React.FC<VIPPaymentModalProps> = ({ isOpen, onClos
                 </div>
               </div>
 
-              {/* Coupon Code Input */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-white/5">
-                <div className="flex flex-col gap-1 w-full sm:w-auto">
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1 sm:w-64">
-                      <Tag className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Mã ưu đãi (VD: SCHOLYX2026, VIP50)"
-                        value={couponCode}
-                        onChange={e => {
-                          setCouponCode(e.target.value);
-                          setCouponFeedback(null);
-                        }}
-                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-xs text-white uppercase focus:border-amber-400 outline-none"
-                      />
-                    </div>
-                    <button
-                      onClick={handleApplyCoupon}
-                      className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition interactive-bounce cursor-pointer"
-                    >
-                      Áp Dụng
-                    </button>
-                  </div>
-                  {couponFeedback && (
-                    <span
-                      className={`text-[11px] font-medium ${
-                        couponFeedback.success ? 'text-emerald-400' : 'text-rose-400'
-                      }`}
-                    >
-                      {couponFeedback.text}
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-right w-full sm:w-auto">
-                  <div className="text-xs text-slate-400">
-                    Tổng tiền cần thanh toán:{' '}
-                    {discountAmount > 0 && (
-                      <span className="text-emerald-400 line-through mr-1">
-                        {currentPlan.priceVND.toLocaleString('vi-VN')} đ
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-2xl font-black text-amber-400 font-space">
-                    {finalPrice.toLocaleString('vi-VN')} đ
-                  </div>
-                </div>
+              <div className="flex justify-between items-center border-t border-white/5 pt-3">
+                <span className="text-sm text-slate-300">Số tiền mô phỏng (không thu tiền thật)</span>
+                <span className="text-2xl font-black text-amber-400">{currentPlan.priceVND.toLocaleString('vi-VN')} đ</span>
               </div>
 
               {/* Action buttons */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <div className="flex items-center gap-2 text-[11px] text-slate-400">
                   <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  <span>Bảo mật chuẩn ISO/IEC 27001 • Hoàn tiền trong 7 ngày nếu không hài lòng.</span>
+                  <span>Môi trường demo: không thu tiền thật và không có chức năng hoàn tiền.</span>
                 </div>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -777,14 +744,6 @@ export const VIPPaymentModal: React.FC<VIPPaymentModalProps> = ({ isOpen, onClos
                           >
                             Hóa đơn
                           </button>
-                          {isSuccess && !txn.refundReason && (
-                            <button
-                              onClick={() => setRefundTxnId(txn.id)}
-                              className="px-2.5 py-1 rounded-lg bg-white/5 text-slate-400 hover:text-rose-300 transition text-[11px]"
-                            >
-                              Hoàn tiền
-                            </button>
-                          )}
                           {isPending && (
                             <button
                               onClick={() => {
@@ -804,36 +763,6 @@ export const VIPPaymentModal: React.FC<VIPPaymentModalProps> = ({ isOpen, onClos
               </table>
             </div>
 
-            {/* Refund Dialog */}
-            {refundTxnId && (
-              <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 space-y-3">
-                <div className="flex items-center gap-2 text-rose-300 font-bold text-xs">
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Yêu cầu hoàn tiền giao dịch {refundTxnId}</span>
-                </div>
-                <textarea
-                  placeholder="Vui lòng nhập lý do yêu cầu hoàn tiền..."
-                  value={refundReason}
-                  onChange={e => setRefundReason(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-rose-500/30 text-xs text-white outline-none"
-                  rows={2}
-                />
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => setRefundTxnId(null)}
-                    className="px-3 py-1 rounded-lg bg-white/10 text-xs text-slate-300"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    onClick={handleConfirmRefund}
-                    className="px-4 py-1 rounded-lg bg-rose-500 text-white font-bold text-xs hover:bg-rose-600"
-                  >
-                    Gửi Yêu Cầu Hoàn Tiền
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 

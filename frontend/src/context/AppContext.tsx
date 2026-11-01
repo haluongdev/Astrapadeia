@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authApi, type ApiUser } from '../services/authApi';
 import {
   UserProfile,
   UserRole,
@@ -126,7 +127,7 @@ interface AppContextType {
   } | null;
   setPendingRegistration: (data: any) => void;
   completeRegistrationWithOtp: (otp: string) => { success: boolean; message: string; user?: UserProfile };
-  loginWithCredentials: (identifier: string, password: string) => { success: boolean; message: string; targetScreen?: ScreenId; user?: UserProfile };
+  loginWithCredentials: (identifier: string, password: string) => Promise<{ success: boolean; message: string; targetScreen?: ScreenId; user?: UserProfile }>;
 
   // Active Session Persistence (Requirement 5)
   activeExamSession: any;
@@ -151,7 +152,7 @@ interface AppContextType {
   updateProfile: (updates: Partial<UserProfile>) => void;
   toggleTaskCompletion: (taskId: string) => void;
   updateStudyHours: (hours: number) => void;
-  
+
   // QTND actions
   addOrUpdateLesson: (lesson: Lesson) => void;
   addOrUpdateQuestion: (question: Question) => void;
@@ -273,11 +274,118 @@ function saveUserScopedData<T>(userId: string, key: string, value: T): void {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Current user & role
-  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('scholyx_user');
-    return saved ? JSON.parse(saved) : INITIAL_USERS[0];
+  const makeGuest = (): UserProfile => ({
+    ...INITIAL_USERS[0], id: 'guest', role: 'guest', name: 'KhÃ¡ch Tham Quan',
+    email: 'guest@scholyx.vn', vipTier: 'free', status: 'active'
   });
+  const fromApiUser = (u: ApiUser): UserProfile => ({
+    ...INITIAL_USERS[0],
+    id: u.id, name: u.fullName || 'Há»c sinh Scholyx', email: u.email || '',
+    phone: u.phone || undefined, grade: u.grade || 12, role: u.role,
+    vipTier: 'free', status: u.status || 'active'
+  });
+  // SCHOLYX_REAL_LOGIN_V1: never trust saved localStorage as authentication.
+  const [currentUser, setCurrentUser] = useState<UserProfile>(makeGuest);
+  useEffect(() => {
+    let alive = true;
+    authApi.me().then(({ user }) => {
+      if (alive) setCurrentUser(fromApiUser(user));
+    }).catch((error: unknown) => {
+      if (!alive) return;
 
+      setCurrentUser(makeGuest());
+
+      const httpStatus =
+        error && typeof error === 'object' && 'status' in error
+          ? (error as { status?: number }).status
+          : undefined;
+
+      if (httpStatus !== 401) {
+        console.error('Session check failed:', error);
+        window.alert(
+          'Khong the kiem tra phien dang nhap. Vui long kiem tra ket noi va tai lai trang.'
+        );
+      }
+    });
+    return () => { alive = false; };
+  }, []);
+
+  // PRE_DEMO_F5_V23: derive demo entitlement from authenticated PostgreSQL transactions.
+  // Do not persist access in localStorage or claim a simulated transaction was paid.
+  useEffect(() => {
+    if (currentUser.id === 'guest' || currentUser.role !== 'student') return;
+    const accountId = currentUser.id;
+    let alive = true;
+    const url = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000') + '/api/pre/demo-entitlement';
+    void fetch(url, { credentials: 'include', cache: 'no-store' })
+      .then(async response => {
+        if (!response.ok) throw new Error('PRE demo entitlement HTTP ' + response.status);
+        return response.json() as Promise<{active?:boolean;simulation?:boolean;expiresAt?:string|null}>;
+      })
+      .then(data => {
+        if (!alive || !data?.simulation) return;
+        setCurrentUser(prev => {
+          if (prev.id !== accountId) return prev;
+          if (data.active && data.expiresAt && Date.parse(data.expiresAt) > Date.now()) {
+            return {...prev, vipTier:'vip',vipExpiresAt:data.expiresAt};
+          }
+          // Do not overwrite other legitimate entitlements; this endpoint only owns demos.
+          return prev;
+        });
+      })
+      .catch(error => { if (alive) console.warn('Không xác minh được quyền PRE mô phỏng:',error); });
+    return () => { alive = false; };
+  }, [currentUser.id, currentUser.role]);
+
+  // Keep authenticated sessions in sync with server-side revocation.
+  // A revoked session is discovered by /auth/me even when the tab is idle.
+  useEffect(() => {
+    if (currentUser.id === 'guest') return;
+    let alive = true;
+    let pending = false;
+    const verify = async () => {
+      if (!alive || pending) return;
+      pending = true;
+      try {
+        await authApi.me();
+      } catch (error: unknown) {
+        const status = error && typeof error === 'object' && 'status' in error
+          ? (error as {status?: number}).status : undefined;
+        if (alive && status === 401) {
+          setCurrentUser(makeGuest());
+          window.alert('Phiên đăng nhập đã kết thúc hoặc bị quản trị viên thu hồi. Vui lòng đăng nhập lại.');
+        }
+      } finally { pending = false; }
+    };
+    const interval = window.setInterval(() => { void verify(); }, 15000);
+    return () => { alive = false; window.clearInterval(interval); };
+  }, [currentUser.id]);
+
+  // SCHOLYX_PROFILE_F5_HYDRATION_V12: restore real PostgreSQL profile after /auth/me.
+  useEffect(() => {
+    if (currentUser.id === 'guest' || currentUser.role !== 'student') return;
+    let alive = true;
+    const requestedId = currentUser.id;
+    authApi.profile().then((result: any) => {
+      if (!alive || result.user?.id !== requestedId || !result.profile) return;
+      const p = result.profile;
+      const serverScores = p.target_scores && typeof p.target_scores === 'object' ? p.target_scores : {};
+      const { __scholyxStudyHours, ...subjectScores } = serverScores;
+      setCurrentUser(prev => prev.id !== requestedId ? prev : ({
+        ...prev,
+        school: p.school ?? '',
+        province: p.province ?? '',
+        targetSubjects: Array.isArray(p.selected_subjects) ? p.selected_subjects : [],
+        targetScores: subjectScores,
+        studyHoursPerDay: typeof __scholyxStudyHours === 'number' ? __scholyxStudyHours : prev.studyHoursPerDay,
+        examDate: p.target_exam_date ? String(p.target_exam_date).slice(0, 10) : prev.examDate,
+        allowAIPersonalization: Boolean(p.ai_personalization)
+      }));
+    }).catch((error: unknown) => {
+      if (alive) console.warn('Student profile rehydration failed:', error);
+    });
+    return () => { alive = false; };
+  }, [currentUser.id]);
   const [users, setUsers] = useState<UserProfile[]>(() => {
     const saved = localStorage.getItem('scholyx_all_users');
     return saved ? JSON.parse(saved) : INITIAL_USERS;
@@ -333,8 +441,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Pending Registration & Auth (Requirement 4)
   const [pendingRegistration, setPendingRegistration] = useState<any>(() => {
-    const saved = localStorage.getItem('scholyx_pending_registration');
-    return saved ? JSON.parse(saved) : null;
+    const saved = sessionStorage.getItem('scholyx_pending_registration');
+    if (!saved) return null;
+    try { const record = JSON.parse(saved); delete record.password; return record; } catch { return null; }
   });
 
   // In-Progress Session persistence (Requirement 5)
@@ -634,10 +743,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [examSubmissions, currentUser.id]);
 
   useEffect(() => {
+    localStorage.removeItem('scholyx_pending_registration');
     if (pendingRegistration) {
-      localStorage.setItem('scholyx_pending_registration', JSON.stringify(pendingRegistration));
+      const { password: _discard, ...safe } = pendingRegistration;
+      sessionStorage.setItem('scholyx_pending_registration', JSON.stringify(safe));
     } else {
-      localStorage.removeItem('scholyx_pending_registration');
+      sessionStorage.removeItem('scholyx_pending_registration');
     }
   }, [pendingRegistration]);
 
@@ -698,114 +809,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   };
 
-  // Demo Login with credentials validation and proper role dashboard routing (Requirement 4)
-  const loginWithCredentials = (identifier: string, password: string): { success: boolean; message: string; targetScreen?: ScreenId; user?: UserProfile } => {
-    const trimmedId = identifier.trim().toLowerCase();
-    const trimmedPass = password.trim();
-
-    if (!trimmedId || !trimmedPass) {
-      return { success: false, message: 'Vui lòng nhập đầy đủ Email/Số điện thoại và Mật khẩu.' };
+  // Authentication is verified by backend; never choose identity by mock users.
+  const loginWithCredentials = async (identifier: string, password: string): Promise<{ success: boolean; message: string; targetScreen?: ScreenId; user?: UserProfile }> => {
+    if (!identifier.trim() || !password) {
+      return { success: false, message: 'Vui lÃ²ng nháº­p email/sá»‘ Ä‘iá»‡n thoáº¡i vÃ  máº­t kháº©u.' };
     }
-
-    if (trimmedPass.length < 8) {
-      return { success: false, message: 'Mật khẩu phải có tối thiểu 8 ký tự theo quy định bảo mật BR-ACC-02.' };
-    }
-
-    // Match with existing users
-    let matchedUser = users.find(u =>
-      u.email.toLowerCase() === trimmedId || (u.phone && u.phone === trimmedId) || u.id === trimmedId
-    );
-
-    // Support demo aliases
-    if (!matchedUser) {
-      if (trimmedId.includes('haidang') || trimmedId.includes('vip')) {
-        matchedUser = users.find(u => u.id === 'user-student-vip') || INITIAL_USERS[1];
-      } else if (trimmedId.includes('admin') || trimmedId.includes('qtv')) {
-        matchedUser = users.find(u => u.id === 'user-qtv') || INITIAL_USERS[3];
-      } else if (trimmedId.includes('an.le') || trimmedId.includes('qtnd') || trimmedId.includes('teacher')) {
-        matchedUser = users.find(u => u.id === 'user-qtnd') || INITIAL_USERS[2];
-      } else if (trimmedId.includes('quan') || trimmedId.includes('free') || trimmedId.includes('student')) {
-        matchedUser = users.find(u => u.id === 'user-student-free') || INITIAL_USERS[0];
+    try {
+      const result = await authApi.login(identifier.trim(), password);
+      if (result.user.status !== 'active') {
+        return { success: false, message: 'TÃ i khoáº£n chÆ°a Ä‘Æ°á»£c kÃ­ch hoáº¡t.' };
       }
+      const profile = fromApiUser(result.user);
+      setCurrentUser(profile);
+      return { success: true, message: 'ÄÄƒng nháº­p thÃ nh cÃ´ng.', targetScreen: 'home', user: profile };
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : 'ÄÄƒng nháº­p tháº¥t báº¡i.' };
     }
-
-    if (!matchedUser) {
-      return {
-        success: false,
-        message: 'Tài khoản không tồn tại trong hệ thống Demo. Vui lòng sử dụng tài khoản mẫu gợi ý hoặc tạo tài khoản mới.'
-      };
-    }
-
-    setCurrentUser(matchedUser);
-
-    // Navigate to role-specific dashboard (Requirement 4)
-    let targetScreen: ScreenId = 'home';
-    if (matchedUser.role === 'student') {
-      targetScreen = 'home';
-    } else if (matchedUser.role === 'qtnd') {
-      targetScreen = 'cms-lessons';
-    } else if (matchedUser.role === 'qtv') {
-      targetScreen = 'admin-overview';
-    }
-
-    return {
-      success: true,
-      message: 'Đăng nhập thành công trong môi trường Demo Sandbox!',
-      targetScreen,
-      user: matchedUser
-    };
   };
 
-  // Role Switcher helper
-  const switchRole = (role: UserRole, vip?: VIPTier) => {
-    if (role === 'guest') {
-      const guestUser: UserProfile = {
-        id: 'guest',
-        name: 'Khách Tham Quan',
-        email: 'guest@scholyx.vn',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-        grade: 12,
-        school: 'Khách Vãng Lai',
-        province: 'Việt Nam',
-        role: 'guest',
-        vipTier: 'free',
-        targetSubjects: ['toan'],
-        targetScores: {},
-        examDate: '2027-06-25',
-        allowAIPersonalization: false,
-        studyHoursPerDay: 0,
-        streakDays: 0,
-        lastActive: 'Hiện tại',
-        status: 'active'
-      };
-      setCurrentUser(guestUser);
-      navigateTo('home');
+  // Legacy role switching cannot grant authentication or privileges.
+  const switchRole = (role: UserRole, _vip?: VIPTier) => {
+    if (role !== 'guest') {
+      console.warn('Demo role switching is disabled.');
       return;
     }
 
-    if (role === 'qtnd') {
-      const teacher = users.find(u => u.role === 'qtnd') || INITIAL_USERS[2];
-      setCurrentUser(teacher);
-      navigateTo('cms-lessons');
-      return;
-    }
-
-    if (role === 'qtv') {
-      const admin = users.find(u => u.role === 'qtv') || INITIAL_USERS[3];
-      setCurrentUser(admin);
-      navigateTo('admin-overview');
-      return;
-    }
-
-    // student
-    if (vip === 'vip') {
-      const vipUser = users.find(u => u.id === 'user-student-vip') || INITIAL_USERS[1];
-      setCurrentUser(vipUser);
-    } else {
-      const freeUser = users.find(u => u.id === 'user-student-free') || INITIAL_USERS[0];
-      setCurrentUser(freeUser);
-    }
-    navigateTo('overview-free');
+    authApi.logout()
+      .then(() => {
+        setCurrentUser(makeGuest());
+        localStorage.removeItem('scholyx_user');
+        navigateTo('home');
+      })
+      .catch((error) => {
+        console.error('Logout failed:', error);
+        window.alert('Logout failed. Please try again.');
+      });
   };
 
   const toggleLessonCompleted = (lessonId: string) => {
@@ -965,6 +1003,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const sendAIMessage = async (text: string, contextQuestion?: Question) => {
+    // SCHOLYX_PROFILE_V231_AI_GUARD: verify the stored choice before simulated response.
+    if (currentUser.role === 'student') {
+      const serverProfile: any = await authApi.profile();
+      if (serverProfile.user?.id !== currentUser.id || !serverProfile.profile?.ai_personalization) {
+        setCurrentUser(prev => prev.id === currentUser.id ? { ...prev, allowAIPersonalization: false } : prev);
+        throw new Error('Trợ lý AI đang tắt trong Cài đặt & Quyền riêng tư. Bật lại để đặt câu hỏi.');
+      }
+      setCurrentUser(prev => prev.id === currentUser.id ? { ...prev, allowAIPersonalization: true } : prev);
+    }
     const userMsg: AIChatMessage = {
       id: `usr-${Date.now()}`,
       role: 'user',
@@ -982,7 +1029,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         role: 'assistant',
         content: `❤️ **Scholyx luôn bên bạn và lắng nghe bạn!**\n\nMình nhận thấy bạn có thể đang trải qua cảm xúc căng thẳng hoặc khó khăn. Bạn không hề đơn độc! Hãy chia sẻ ngay với người thân, thầy cô hoặc liên hệ:\n\n- 📞 **Tổng đài Quốc gia Bảo vệ Trẻ em & Học sinh: 111** (Miễn phí 24/7)\n- 📞 **Đường dây nóng hỗ trợ tâm lý Ngày Mai: 096 306 1414**\n\nCuộc sống này còn rất nhiều điều tươi đẹp đang chờ đón bạn. Hãy chăm sóc sức khỏe của mình bạn nhé!`,
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        sources: ['Quy chuẩn an toàn sức khỏe tâm thần Scholyx (BR-AI-07)']
+        sources: ['Quy chuẩn an toàn sức khỏe tâm thần Scholyx']
       };
       setAiMessages(prev => [...prev, safetyResponse]);
       return;
@@ -995,7 +1042,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         role: 'assistant',
         content: `Trợ lý Cosmos được thiết kế chuyên biệt để hỗ trợ học tập và ôn thi tốt nghiệp THPT theo Chương trình GDPT 2018 (Toán, Lí, Hóa, Văn, Anh, Sinh, Sử, Địa). Yêu cầu này nằm ngoài phạm vi học tập THPT, bạn hãy đặt câu hỏi liên quan đến kiến thức môn học nhé!`,
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        sources: ['Quy chế hỗ trợ học tập THPT (BR-AI-07)']
+        sources: ['Quy chế hỗ trợ học tập THPT']
       };
       setAiMessages(prev => [...prev, outOfScopeResponse]);
       return;
@@ -1164,49 +1211,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       customerNote: 'Đang chờ quét mã QR từ ví điện tử/ngân hàng hoặc QTV duyệt'
     };
 
+    // Sync only the demo transaction. Never mark it as a real paid purchase.
+    const bridgeResponse = await fetch(
+      (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000') + '/api/pre/demo-transactions',
+      {method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({clientReference:newTxn.id,planCode:planId,method})}
+    );
+    if(!bridgeResponse.ok){
+      const detail=await bridgeResponse.json().catch(()=>({}));
+      throw new Error(detail.message||detail.error||'Không lưu được giao dịch mô phỏng ở PostgreSQL ('+bridgeResponse.status+')');
+    }
+
     setTransactions(prev => [newTxn, ...prev]);
     addAuditLog('TẠO_GIAO_DỊCH_QR_PENDING', `Mã ${newTxn.id}`, `Số tiền: ${finalAmount.toLocaleString('vi-VN')}đ qua ${method.toUpperCase()}`);
     return newTxn;
   };
 
   const simulateScanAndPay = async (transactionId: string): Promise<boolean> => {
+    // Server owns the simulation status; local animation updates only after server confirmation.
+    const bridgeResponse=await fetch(
+      (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000')+
+      '/api/pre/demo-transactions/'+encodeURIComponent(transactionId)+'/complete',
+      {method:'POST',credentials:'include'}
+    );
+    if(!bridgeResponse.ok){
+      const detail=await bridgeResponse.json().catch(()=>({}));
+      throw new Error(detail.message||detail.error||'Không đồng bộ được trạng thái mô phỏng ('+bridgeResponse.status+')');
+    }
     return new Promise(resolve => {
       setTimeout(() => {
         setTransactions(prev =>
-          prev.map(t => {
-            if (t.id === transactionId) {
-              return {
-                ...t,
-                status: 'success',
-                completedAt: new Date().toLocaleString('vi-VN'),
-                approvedBy: 'Ví điện tử Push Notification (Tự động)'
-              };
-            }
-            return t;
-          })
+          prev.map(t => t.id===transactionId
+            ? {...t,status:'success',completedAt:new Date().toLocaleString('vi-VN'),
+                approvedBy:'Mô phỏng ví điện tử (không thu tiền thật)'}
+            : t)
         );
-
-        // Find the transaction to activate VIP
-        const txn = transactions.find(t => t.id === transactionId);
-        const days = txn?.planId === 'plan-cosmos' ? 365 : txn?.planId === 'plan-comet' ? 30 : 90;
-        const currentExpire = currentUser.vipExpiresAt ? new Date(currentUser.vipExpiresAt) : new Date();
-        const newExpire = new Date(Math.max(Date.now(), currentExpire.getTime()) + days * 24 * 60 * 60 * 1000);
-
-        setCurrentUser(prev => ({
-          ...prev,
-          vipTier: 'vip',
-          vipExpiresAt: newExpire.toISOString()
-        }));
-
-        setUserGameStats(gs => ({
-          ...gs,
-          combatPower: gs.combatPower + 1500,
-          crystals: gs.crystals + 250
-        }));
-
-        addAuditLog('QUÉT_QR_THÀNH_CÔNG', `Giao dịch ${transactionId}`, 'Thanh toán thành công từ App ví điện tử');
+        // Preserve the original Student demo reward/UI only. This is not real PRE entitlement.
+        const txn=transactions.find(t=>t.id===transactionId);
+        if(txn){
+          const days=txn.planId==='plan-cosmos'?365:txn.planId==='plan-comet'?30:90;
+          const previous=currentUser.vipExpiresAt?new Date(currentUser.vipExpiresAt):new Date();
+          const next=new Date(Math.max(Date.now(),previous.getTime())+days*86400000);
+          setCurrentUser(prev=>({...prev,vipTier:'vip',vipExpiresAt:next.toISOString()}));
+          setUserGameStats(gs=>({...gs,combatPower:gs.combatPower+1500,crystals:gs.crystals+250}));
+        }
+        addAuditLog('MÔ_PHỎNG_QR_HOÀN_TẤT',`Giao dịch ${transactionId}`,'Thanh toán mô phỏng; không phải doanh thu thật');
         resolve(true);
-      }, 1500);
+      },1500);
     });
   };
 

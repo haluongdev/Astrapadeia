@@ -325,7 +325,7 @@ export interface FeedbackReport {
 }
 
 /* GAMIFIED RANKED & COMBAT POWER (CHIẾN LỰC) TYPES */
-export type RankTier = 
+export type RankTier =
   | 'bronze'       // Đồng (Quỹ Đạo Đồng)
   | 'silver'       // Bạc (Tinh Vân Bạc)
   | 'gold'         // Vàng (Thái Dương Vàng)
@@ -448,5 +448,3 @@ export interface RankedOpponent {
   accuracyRate: number; // 0 - 100
   avgAnswerSeconds: number;
 }
-
-

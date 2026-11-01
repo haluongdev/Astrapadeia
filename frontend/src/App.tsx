@@ -13,6 +13,7 @@ import { AuthRegisterScreen } from './components/screens/AuthRegisterScreen';
 import { AuthOtpScreen } from './components/screens/AuthOtpScreen';
 import { AuthForgotPasswordScreen } from './components/screens/AuthForgotPasswordScreen';
 import { OnboardingScreen } from './components/screens/OnboardingScreen';
+import { PrivacySettingsPanel } from './components/PrivacySettingsPanel';
 import { FreeOverviewScreen } from './components/screens/FreeOverviewScreen';
 import { SystemFlowMapScreen } from './components/screens/SystemFlowMapScreen';
 import { ScreenPlaceholder } from './components/common/ScreenPlaceholder';
@@ -41,7 +42,7 @@ const MainAppContent: React.FC = () => {
   const {
     activeScreenId,
     navigateTo,
-    switchRole,
+
     currentUser,
     isSidebarOpen,
     setSidebarOpen,
@@ -77,13 +78,6 @@ const MainAppContent: React.FC = () => {
       {/* 1. Twinkling Astronomical Starfield and Shooting Stars Canvas */}
       <StarfieldBackground />
 
-      {/* 2. Collapsible Cosmic Navigation Sidebar (All 30 Screens) */}
-      <CosmicSidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        activeScreenId={activeScreenId}
-        onNavigate={navigateTo}
-      />
 
       {/* 3. Persistent Unified Header/Navbar */}
       <Navbar
@@ -92,12 +86,6 @@ const MainAppContent: React.FC = () => {
         onOpenFeedbackModal={() => setShowFeedbackModal(true)}
       />
 
-      {/* 4. Quick Screen Navigator Modal (⌘K Command Palette) */}
-      <ScreenNavigatorModal
-        isOpen={isSearchPaletteOpen}
-        onClose={() => setSearchPaletteOpen(false)}
-        onSelectScreen={navigateTo}
-      />
 
       {/* 5. Main Dynamic Viewport */}
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12">
@@ -114,7 +102,7 @@ const MainAppContent: React.FC = () => {
                   <LogIn className="w-8 h-8" />
                 </div>
                 <div className="text-xs uppercase font-bold text-cyan-400 tracking-wider">
-                  Yêu Cầu Xác Thực • Khách Tham Quan (BR-ACC-01)
+                  Yêu Cầu Xác Thực • Khách Tham Quan
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-black text-white font-space">
                   Vui Lòng Đăng Nhập Để Tiếp Tục
@@ -161,7 +149,7 @@ const MainAppContent: React.FC = () => {
                   <Crown className="w-8 h-8" />
                 </div>
                 <div className="text-xs uppercase font-bold text-amber-400 tracking-wider">
-                  Đặc Quyền Hội Viên • Yêu Cầu Gói VIP Pass (BR-VIP-01)
+                  Đặc Quyền Hội Viên • Yêu Cầu Gói VIP Pass
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-black text-white font-space">
                   Nâng Cấp Gói VIP Để Mở Khóa Màn Hình Này
@@ -206,28 +194,12 @@ const MainAppContent: React.FC = () => {
                   Không Có Quyền Truy Cập Màn Hình Này
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg mx-auto">
-                  Màn hình <span className="font-bold text-white">[{screenMeta?.title || activeScreenId}]</span> yêu cầu vai trò <span className="font-bold text-cyan-300">[{screenMeta?.allowedRoles.join(', ')}]</span> theo quy chuẩn phân quyền BR-RBAC-02.
+                  Màn hình <span className="font-bold text-white">[{screenMeta?.title || activeScreenId}]</span> yêu cầu vai trò <span className="font-bold text-cyan-300">[{screenMeta?.allowedRoles.join(', ')}]</span> theo quy định phân quyền.
                 </p>
-                <div className="p-3 bg-white/5 rounded-xl text-xs text-slate-400 max-w-md mx-auto">
-                  <em>Lưu ý: Bạn đang ở môi trường DEMO. Bạn có thể nhanh chóng chuyển đổi vai trò bên dưới để kiểm tra chức năng.</em>
-                </div>
+                <div className="p-3 bg-white/5 rounded-xl text-xs text-slate-400 max-w-md mx-auto">Please sign in with an authorized account to access this screen.</div>
                 <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-                  {screenMeta?.allowedRoles.includes('qtnd') && (
-                    <button
-                      onClick={() => switchRole('qtnd')}
-                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition interactive-bounce"
-                    >
-                      <span>Chuyển Sang Vai Trò QTND (Demo)</span>
-                    </button>
-                  )}
-                  {screenMeta?.allowedRoles.includes('qtv') && (
-                    <button
-                      onClick={() => switchRole('qtv')}
-                      className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 transition interactive-bounce"
-                    >
-                      <span>Chuyển Sang Vai Trò QTV (Demo)</span>
-                    </button>
-                  )}
+
+
                   <button
                     onClick={() => navigateTo('home')}
                     className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition interactive-bounce"
@@ -406,7 +378,7 @@ const MainAppContent: React.FC = () => {
                   Kế Hoạch Ôn Luyện Thích Ứng Theo Năng Lực
                 </h2>
                 <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-                  Thuật toán BR-PERS-02 tự động tính toán thời gian đến ngày thi THPT 2026, phân bổ khối lượng bài tập theo số giờ học mỗi ngày và ưu tiên cải thiện các chuyên đề yếu.
+                  Thuật toán cá nhân hóa tự động tính toán thời gian đến ngày thi THPT 2026, phân bổ khối lượng bài tập theo số giờ học mỗi ngày và ưu tiên cải thiện các chuyên đề yếu.
                 </p>
               </div>
 
@@ -467,32 +439,8 @@ const MainAppContent: React.FC = () => {
           </div>
         )}
 
-        {/* 20 · Tài khoản, cài đặt & thuê bao */}
-        {activeScreenId === 'profile-settings' && (
-          <div className="space-y-6">
-            <div className="p-6 rounded-3xl cosmic-card border border-indigo-500/30 text-center space-y-3">
-              <span className="text-xs uppercase font-bold text-cyan-400">
-                Màn hình 20 • Quản Lý Hồ Sơ & Quyền Riêng Tư (Luật 2025)
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-space">
-                Tài Khoản & Quyền Riêng Tư
-              </h2>
-              <p className="text-xs text-slate-300 max-w-xl mx-auto">
-                Cập nhật thông tin học tập, khối lớp, môn thi tổ hợp và quản lý dữ liệu cá nhân theo Luật 91/2025/QH15.
-              </p>
-              <div className="pt-2">
-                <button
-                  onClick={() => setShowProfileModal(true)}
-                  className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-xl shadow-indigo-600/30 transition interactive-bounce inline-flex items-center gap-2"
-                >
-                  <span>Chỉnh Sửa Hồ Sơ & Tải Dữ Liệu</span>
-                </button>
-              </div>
-            </div>
-            <OnboardingScreen onNavigate={navigateTo} />
-          </div>
-        )}
-
+        {/* 20 · Cài đặt & Quyền riêng tư — không lồng Hồ sơ hoặc Mục tiêu */}
+        {activeScreenId === 'profile-settings' && <PrivacySettingsPanel />}
         {/* 21 · Không gian nội dung & bài học (QTND) */}
         {activeScreenId === 'cms-lessons' && (
           <ContentAdminModule initialTab="lessons" />
@@ -523,7 +471,7 @@ const MainAppContent: React.FC = () => {
           <div className="space-y-6">
             <div className="p-6 rounded-3xl cosmic-card border border-emerald-500/30 space-y-3">
               <span className="text-xs uppercase font-bold text-emerald-400">
-                Màn hình 26 • Quản lý Phản Hồi & Chất Lượng Nội Dung (FR-FB-03)
+                Màn hình 26 • Quản lý Phản Hồi & Chất Lượng Nội Dung
               </span>
               <h2 className="text-2xl font-bold text-white font-space">
                 Phản Hồi & Đánh Giá Chất Lượng Câu Hỏi
@@ -547,7 +495,7 @@ const MainAppContent: React.FC = () => {
 
         {/* 27 · Tổng quan & tài khoản (QTV) */}
         {activeScreenId === 'admin-overview' && (
-          <SystemAdminModule initialTab="overview" />
+          <SystemAdminModule key={screenParams?.tab === "revenue" ? "pre-transactions" : "admin-overview"} initialTab={screenParams?.tab === "revenue" ? "revenue" : "overview"} />
         )}
 
         {/* 28 · Vai trò & phân quyền (QTV) */}
@@ -596,14 +544,6 @@ const MainAppContent: React.FC = () => {
 
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
             <button
-              onClick={() => navigateTo('system-flow')}
-              className="text-cyan-400 hover:underline flex items-center gap-1 font-semibold transition interactive-bounce"
-            >
-              <Network className="w-3.5 h-3.5" />
-              <span>00 · Bản Đồ 30 Màn Hình</span>
-            </button>
-            <span>•</span>
-            <button
               onClick={() => setShowFeedbackModal(true)}
               className="hover:text-cyan-300 transition interactive-bounce"
             >
@@ -629,8 +569,8 @@ const MainAppContent: React.FC = () => {
         isOpen={showTrialModal}
         onClose={() => setShowTrialModal(false)}
         onSignUpAsStudent={() => {
-          switchRole('student', 'free');
-          navigateTo('onboarding');
+          setShowTrialModal(false);
+          navigateTo('auth-register');
         }}
       />
       <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />

@@ -376,7 +376,7 @@ export const PracticeModule: React.FC<PracticeModuleProps> = ({
     }
   };
 
-  // Feedback report submission (FR-FB-01)
+  // Feedback report submission
   const handleReportFeedback = () => {
     if (!currentQ || !feedbackText.trim()) return;
     submitFeedback('question_error', feedbackText, currentQ.id);
@@ -504,7 +504,7 @@ export const PracticeModule: React.FC<PracticeModuleProps> = ({
           <div className="lg:col-span-2 p-6 rounded-2xl cosmic-card border border-white/5 space-y-5">
             <h3 className="font-bold text-base text-white flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-300" />
-              Cấu Hình Bài Luyện Tập Cá Nhân Hóa (FR-PRAC-01)
+              Cấu Hình Bài Luyện Tập Cá Nhân Hóa
             </h3>
 
             {/* Subject Selector */}
@@ -625,7 +625,7 @@ export const PracticeModule: React.FC<PracticeModuleProps> = ({
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-300">
-                  Chế độ luyện tập (FR-PRAC-08):
+                  Chế độ luyện tập:
                 </label>
                 <div className="flex items-center gap-2">
                   <button
@@ -839,11 +839,11 @@ export const PracticeModule: React.FC<PracticeModuleProps> = ({
                       <span className="hidden sm:inline">Hỏi AI câu này</span>
                     </button>
 
-                    {/* Report Error button (FR-FB-01) */}
+                    {/* Report Error button */}
                     <button
                       onClick={() => setShowFeedbackModal(true)}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-white/5 transition"
-                      title="Báo lỗi câu hỏi (FR-FB-01)"
+                      title="Báo lỗi câu hỏi"
                     >
                       <AlertTriangle className="w-4 h-4" />
                     </button>
@@ -977,7 +977,7 @@ export const PracticeModule: React.FC<PracticeModuleProps> = ({
                   </div>
                 )}
 
-                {/* Chế độ học tập: nút xem giải ngay (FR-PRAC-08) */}
+                {/* Chế độ học tập: nút xem giải ngay */}
                 {isStudyMode && (
                   <div className="pt-2 border-t border-white/10">
                     <button
@@ -1094,7 +1094,7 @@ export const PracticeModule: React.FC<PracticeModuleProps> = ({
         </div>
       )}
 
-      {/* Feedback Modal (FR-FB-01) */}
+      {/* Feedback Modal */}
       {showFeedbackModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-md p-6 rounded-2xl cosmic-card border border-indigo-500/40 space-y-4">

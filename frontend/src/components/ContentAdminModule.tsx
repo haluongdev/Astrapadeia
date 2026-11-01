@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CmsDatabasePanel } from './CmsDatabasePanel';
 import {
   Settings,
   BookOpen,
@@ -73,17 +74,17 @@ export const ContentAdminModule: React.FC<ContentAdminModuleProps> = ({ initialT
     points: 0.25
   });
 
-  // AI Exam Matrix Generator state (FR-CMS-10)
+  // AI Exam Matrix Generator state
   const [matrixSubject, setMatrixSubject] = useState<string>('toan');
   const [matrixTitle, setMatrixTitle] = useState<string>('Đề Thi Thử Tự Động Sinh Bằng AI - 2026');
   const [isGeneratingExam, setIsGeneratingExam] = useState<boolean>(false);
 
-  // RAG upload state (FR-CMS-16)
+  // RAG upload state
   const [ragTitle, setRagTitle] = useState<string>('');
   const [ragSource, setRagSource] = useState<string>('');
   const [ragContent, setRagContent] = useState<string>('');
 
-  // Essay grading state (FR-CMS-14)
+  // Essay grading state
   const [essayScoreInput, setEssayScoreInput] = useState<number>(3.5);
   const [essayFeedbackInput, setEssayFeedbackInput] = useState<string>('Bài viết có dẫn chứng thực tế tốt, lập luận mạch lạc.');
   const [cmsNotice, setCmsNotice] = useState<string | null>(null);
@@ -126,7 +127,7 @@ export const ContentAdminModule: React.FC<ContentAdminModuleProps> = ({ initialT
     showToast('Đã lưu câu hỏi thành công vào ngân hàng đề!');
   };
 
-  // AI Exam Matrix Generator handler (FR-CMS-10)
+  // AI Exam Matrix Generator handler
   const handleGenerateExamByAI = () => {
     setIsGeneratingExam(true);
     setTimeout(() => {
@@ -175,7 +176,7 @@ export const ContentAdminModule: React.FC<ContentAdminModuleProps> = ({ initialT
     }, 1200);
   };
 
-  // RAG upload handler (FR-CMS-16)
+  // RAG upload handler
   const handleUploadRAG = () => {
     if (!ragTitle.trim() || !ragSource.trim()) {
       showToast('Lỗi: Vui lòng nhập tên tài liệu và nguồn trích dẫn hợp lệ!');
@@ -200,6 +201,7 @@ export const ContentAdminModule: React.FC<ContentAdminModuleProps> = ({ initialT
 
   return (
     <div className="space-y-6 pb-16">
+      <CmsDatabasePanel initialTab={initialTab} />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl cosmic-card border border-emerald-500/25">
         <div>
@@ -284,12 +286,12 @@ export const ContentAdminModule: React.FC<ContentAdminModuleProps> = ({ initialT
             <div className="flex items-center gap-2">
               <button
                 onClick={() =>
-                  showToast('Mô phỏng nhập hàng loạt 50 câu hỏi từ tệp Excel/CSV mẫu thành công! Báo cáo kiểm tra 0 lỗi cú pháp (FR-CMS-05).')
+                  showToast('Mô phỏng nhập hàng loạt 50 câu hỏi từ tệp Excel/CSV mẫu thành công! Báo cáo kiểm tra 0 lỗi cú pháp.')
                 }
                 className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Nhập Excel Hàng Loạt (FR-CMS-05)</span>
+                <span>Nhập Excel Hàng Loạt</span>
               </button>
 
               <button
@@ -383,13 +385,13 @@ export const ContentAdminModule: React.FC<ContentAdminModuleProps> = ({ initialT
         </div>
       )}
 
-      {/* Tab 2: AI Exam Matrix Generator (FR-CMS-10) */}
+      {/* Tab 2: AI Exam Matrix Generator */}
       {activeTab === 'exam_matrix' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="p-6 rounded-2xl cosmic-card border border-white/5 space-y-4">
             <h3 className="font-bold text-base text-white flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-300" />
-              Tạo Đề Thi Tự Động Bằng AI Theo Ma Trận (FR-CMS-10)
+              Tạo Đề Thi Tự Động Bằng AI Theo Ma Trận
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               Hệ thống dựa trên cấu hình ma trận đề (môn, mức độ nhận biết 40% - thông hiểu 30% - vận dụng 30%) và ngân hàng câu hỏi để tự động bốc và ráp đề chuẩn quy chuẩn QĐ 764.
@@ -472,7 +474,7 @@ export const ContentAdminModule: React.FC<ContentAdminModuleProps> = ({ initialT
           <div className="p-6 rounded-2xl cosmic-card border border-white/5 space-y-4">
             <h3 className="font-bold text-base text-white flex items-center gap-2">
               <Upload className="w-4 h-4 text-cyan-400" />
-              Tải Lên Tài Liệu Nguồn Cho Trợ Lý AI RAG (FR-CMS-16)
+              Tải Lên Tài Liệu Nguồn Cho Trợ Lý AI RAG
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -520,7 +522,7 @@ export const ContentAdminModule: React.FC<ContentAdminModuleProps> = ({ initialT
           {/* RAG Documents Table */}
           <div className="rounded-2xl cosmic-card border border-white/5 overflow-hidden">
             <div className="p-4 border-b border-white/5 font-bold text-xs uppercase tracking-wider text-slate-400">
-              Danh Mục Tài Liệu Kho Tri Thức RAG (Chỉ tài liệu 'Đã Duyệt' mới cung cấp cho AI - FR-CMS-17)
+              Danh Mục Tài Liệu Kho Tri Thức RAG (Chỉ tài liệu 'Đã Duyệt' mới cung cấp cho AI)
             </div>
             <div className="divide-y divide-white/5">
               {ragDocs.map(doc => (
@@ -567,13 +569,13 @@ export const ContentAdminModule: React.FC<ContentAdminModuleProps> = ({ initialT
         </div>
       )}
 
-      {/* Tab 4: Essay Grading Workspace (FR-CMS-14) */}
+      {/* Tab 4: Essay Grading Workspace */}
       {activeTab === 'essay_grading' && (
         <div className="space-y-4">
           <div className="p-6 rounded-2xl cosmic-card border border-white/5 space-y-4">
             <h3 className="font-bold text-base text-white flex items-center gap-2">
               <FileText className="w-4 h-4 text-amber-400" />
-              Khu Vực Chấm Điểm Bài Tự Luận Ngữ Văn / Toán (FR-CMS-14)
+              Khu Vực Chấm Điểm Bài Tự Luận Ngữ Văn / Toán
             </h3>
             <p className="text-xs text-slate-400">
               QTND có quyền nhập điểm chính thức cho các câu tự luận và gửi phản hồi đến học sinh.
