@@ -1,3 +1,4 @@
+import { authApi } from '../services/authApi';
 import React, { useState } from 'react';
 import {
   Sparkles,
@@ -47,6 +48,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenProfileModal,
   onOpenFeedbackModal
 }) => {
+  const handleRealLogout = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    const button = event.currentTarget;
+    if (button.disabled) return;
+    button.disabled = true;
+    try {
+      await authApi.logout();
+      localStorage.removeItem('scholyx_user');
+      localStorage.removeItem('scholyx_pending_registration');
+      window.location.replace('/');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Không thể đăng xuất. Vui lòng thử lại.');
+      button.disabled = false;
+    }
+  };
   const {
     currentUser,
     switchRole,
@@ -78,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           { id: 'admin-overview', label: 'Tài Khoản', icon: Users },
           { id: 'admin-roles', label: 'Phân Quyền RBAC', icon: ShieldCheck },
           { id: 'admin-config-audit', label: 'Audit Log & Cấu Hình', icon: Sliders },
-          { id: 'vip-pricing', label: 'Gói VIP & Giao Dịch', icon: Crown }
+          { id: 'admin-overview', label: 'Gói PRE & Giao dịch', icon: Crown, params: { tab: 'revenue' } }
         ],
         more: [
           {
@@ -92,13 +107,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             label: 'Thống Kê Học Sinh',
             icon: LayoutDashboard,
             desc: 'Theo dõi lưu lượng và hạn mức hệ thống'
-          },
-          {
-            id: 'system-flow',
-            label: '00 · Bản Đồ 30 Màn Hình',
-            icon: Network,
-            badge: 'MAP',
-            desc: 'Sơ đồ luồng toàn hệ thống theo chuẩn Figma'
           }
         ]
       };
@@ -133,13 +141,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             label: 'Xem Trước Đề Thi',
             icon: Award,
             desc: 'Kiểm tra hiển thị đề thi tốt nghiệp'
-          },
-          {
-            id: 'system-flow',
-            label: '00 · Bản Đồ 30 Màn Hình',
-            icon: Network,
-            badge: 'MAP',
-            desc: 'Sơ đồ luồng toàn hệ thống theo chuẩn Figma'
           }
         ]
       };
@@ -175,13 +176,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             label: 'Giới Thiệu Gói Free',
             icon: LayoutDashboard,
             desc: 'Xem quyền lợi và radar điểm yếu mẫu'
-          },
-          {
-            id: 'system-flow',
-            label: '00 · Bản Đồ 30 Màn Hình',
-            icon: Network,
-            badge: 'MAP',
-            desc: 'Sơ đồ luồng toàn hệ thống theo chuẩn Figma'
           }
         ]
       };
@@ -231,13 +225,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           icon: Crown,
           badge: 'HOT',
           desc: 'Bảng giá và thanh toán VietQR tự động'
-        },
-        {
-          id: 'system-flow',
-          label: '00 · Bản Đồ 30 Màn Hình',
-          icon: Network,
-          badge: 'MAP',
-          desc: 'Sơ đồ luồng toàn hệ thống theo chuẩn Figma'
         }
       ]
     };
@@ -292,14 +279,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
         {/* Left Section: Sidebar Toggle & Brand Logo */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Sidebar Drawer Toggle */}
-          <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-cyan-300 border border-white/10 hover:border-cyan-500/40 transition interactive-bounce"
-            title="Mở menu 30 màn hình (Sidebar)"
-          >
-            <PanelLeft className="w-5 h-5" />
-          </button>
+
 
           {/* Brand Logo - Click quay về Trang chủ */}
           <button
@@ -422,18 +402,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Section: Notification, Role Switcher, VIP Pill & User Menu */}
         <div className="flex items-center gap-1.5 sm:gap-2.5">
-          {/* Quick 30-Screen Switcher / Command Palette trigger */}
-          <button
-            onClick={() => setSearchPaletteOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-cyan-300 text-xs font-semibold transition interactive-bounce"
-            title="Mở bảng điều hướng 30 màn hình Figma (Phím tắt: ⌘K hoặc Ctrl+K)"
-          >
-            <Network className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden xl:inline">30 Màn hình</span>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.2 text-[9px] font-mono bg-white/10 rounded text-slate-300">
-              ⌘K
-            </kbd>
-          </button>
+
 
           {/* Biểu tượng thông báo (Notification Bell) */}
           <div className="relative">
@@ -509,9 +478,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Quick Role Switcher (Essential for testing all roles per SRS) */}
           <div className="relative">
-            <button
+            <button hidden
               onClick={() => {
-                setShowRoleMenu(!showRoleMenu);
+                setShowRoleMenu(false);
                 setShowMoreMenu(false);
                 setShowNotifications(false);
                 setShowUserMenu(false);
@@ -529,7 +498,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
-            {showRoleMenu && (
+            {false && showRoleMenu && (
               <div className="absolute right-0 mt-2 w-64 rounded-2xl cosmic-card p-2 border border-indigo-500/40 shadow-2xl z-50 animate-fadeIn">
                 <div className="px-2.5 py-1.5 flex items-center justify-between border-b border-white/10 mb-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -658,6 +627,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
 
+
+                {currentUser.role === 'student' && (
+                  <button
+                    onClick={() => { setShowUserMenu(false); onOpenProfileModal(); }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-2"
+                  >
+                    <User className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Hồ sơ cá nhân</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     setShowUserMenu(false);
@@ -666,7 +646,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="w-full text-left px-2.5 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition flex items-center gap-2"
                 >
                   <GraduationCap className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>06 · Hồ sơ & Mục tiêu</span>
+                  <span>Mục tiêu học tập</span>
                 </button>
 
                 <button
@@ -680,27 +660,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>20 · Cài đặt & Quyền riêng tư</span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    navigateTo('system-flow');
-                  }}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-cyan-300 hover:bg-white/5 transition flex items-center gap-2 font-semibold"
-                >
-                  <Network className="w-3.5 h-3.5" />
-                  <span>00 · Bản đồ 30 màn hình</span>
-                </button>
-
                 <div className="border-t border-white/10 my-1 pt-1">
                   <button
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      navigateTo('auth-login');
-                    }}
+                    onClick={currentUser.role === 'guest' ? () => { setShowUserMenu(false); navigateTo('auth-login'); } : handleRealLogout}
                     className="w-full text-left px-2.5 py-1.5 rounded-lg text-rose-300 hover:bg-rose-500/10 transition flex items-center gap-2 font-medium"
                   >
-                    <LogOut className="w-3.5 h-3.5 text-rose-400" />
-                    <span>02 · Đăng nhập / Đổi tài khoản</span>
+                    {currentUser.role === 'guest' ? <User className="w-3.5 h-3.5 text-cyan-400" /> : <LogOut className="w-3.5 h-3.5 text-rose-400" />}
+                    <span>{currentUser.role === 'guest' ? 'Đăng nhập' : 'Đăng xuất'}</span>
                   </button>
                 </div>
               </div>
@@ -720,19 +686,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer Menu */}
       {showMobileMenu && (
         <div className="lg:hidden px-4 pt-2 pb-4 space-y-1 bg-[#090d1f] border-b border-indigo-900/40 animate-fadeIn">
-          <div className="p-2 mb-2 bg-[#0e1329] rounded-xl flex items-center justify-between">
-            <button
-              onClick={() => {
-                setShowMobileMenu(false);
-                setSearchPaletteOpen(true);
-              }}
-              className="text-xs font-bold text-cyan-300 flex items-center gap-1.5"
-            >
-              <Network className="w-4 h-4 text-cyan-400" />
-              <span>Khám phá 30 màn hình Figma</span>
-            </button>
-            <span className="text-[10px] text-slate-400 font-mono">⌘K</span>
-          </div>
 
           {primaryNavItems.map(item => {
             const Icon = item.icon;

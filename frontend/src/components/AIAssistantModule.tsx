@@ -66,6 +66,8 @@ export const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({
     try {
       await sendAIMessage(message, injectedQuestion || undefined);
       if (onClearInjectedQuestion) onClearInjectedQuestion();
+    } catch (error) {
+      setAiNotice(error instanceof Error ? error.message : 'Không thể xác minh cài đặt Trợ lý AI từ máy chủ.');
     } finally {
       setIsGenerating(false);
     }
@@ -103,7 +105,7 @@ export const AIAssistantModule: React.FC<AIAssistantModuleProps> = ({
           <button
             onClick={clearAIChat}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
-            title="Làm mới cuộc trò chuyện (FR-AI-10)"
+            title="Làm mới cuộc trò chuyện"
           >
             <RotateCcw className="w-4 h-4" />
           </button>

@@ -27,7 +27,7 @@ export const INITIAL_SUBJECTS: Subject[] = [
     code: 'MATH',
     icon: 'Calculator',
     color: 'from-blue-500 to-indigo-600',
-    isCompulsory: true,
+    isCompulsory: false,
     description: 'Ứng dụng đạo hàm, tích phân, hình học Oxyz, xác suất có điều kiện'
   },
   {
@@ -36,7 +36,7 @@ export const INITIAL_SUBJECTS: Subject[] = [
     code: 'LIT',
     icon: 'BookOpen',
     color: 'from-amber-500 to-rose-600',
-    isCompulsory: true,
+    isCompulsory: false,
     description: 'Đọc hiểu văn bản hiện đại, nghị luận xã hội và nghị luận văn học 2018'
   },
   {
@@ -1456,5 +1456,3 @@ export const MOCK_PAYMENT_CONFIG = {
     appId: '2553'
   }
 };
-
-

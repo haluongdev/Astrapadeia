@@ -51,7 +51,7 @@ export const MistakeNotebook: React.FC<MistakeNotebookProps> = ({
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase text-rose-400">
             <AlertOctagon className="w-4 h-4" />
-            <span>Sổ Câu Sai Tự Động (FR-PRAC-09)</span>
+            <span>Sổ Câu Sai Tự Động</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white font-space mt-1">
             Nhật Ký Lỗ Hổng Kiến Thức & Ôn Lại Trọng Điểm

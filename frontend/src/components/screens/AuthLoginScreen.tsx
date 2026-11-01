@@ -19,43 +19,29 @@ interface AuthLoginScreenProps {
 }
 
 export const AuthLoginScreen: React.FC<AuthLoginScreenProps> = ({ onNavigate }) => {
-  const { switchRole, loginWithCredentials } = useApp();
-  const [identifier, setIdentifier] = useState('quan.nm@scholyx.edu.vn');
-  const [password, setPassword] = useState('Scholyx2026!');
+  const { loginWithCredentials } = useApp();
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // SCHOLYX_REAL_LOGIN_V1: send credentials to the backend.
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      const res = loginWithCredentials(identifier, password);
+    try {
+      const res = await loginWithCredentials(identifier, password);
       if (!res.success) {
         setErrorMessage(res.message);
         return;
       }
+      setPassword('');
       onNavigate(res.targetScreen || 'home');
-    }, 400);
-  };
-
-  const handleQuickDemoLogin = (role: 'student_free' | 'student_vip' | 'qtnd' | 'qtv') => {
-    if (role === 'student_free') {
-      switchRole('student', 'free');
-      onNavigate('home');
-    } else if (role === 'student_vip') {
-      switchRole('student', 'vip');
-      onNavigate('home');
-    } else if (role === 'qtnd') {
-      switchRole('qtnd');
-      onNavigate('cms-lessons');
-    } else {
-      switchRole('qtv');
-      onNavigate('admin-overview');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -81,17 +67,6 @@ export const AuthLoginScreen: React.FC<AuthLoginScreenProps> = ({ onNavigate }) 
           </h2>
           <p className="text-xs text-slate-400">
             Học tập, luyện thi THPT và kết nối Trợ lý AI theo chuẩn GDPT 2018
-          </p>
-        </div>
-
-        {/* Demo Sandbox environment notice banner */}
-        <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-200 text-xs space-y-1">
-          <div className="flex items-center gap-1.5 font-bold text-cyan-300">
-            <ShieldCheck className="w-4 h-4 text-cyan-400" />
-            <span>Môi trường Xác Thực Mô Phỏng (Demo Sandbox)</span>
-          </div>
-          <p className="text-[11px] text-slate-300 leading-relaxed">
-            Hệ thống chạy mô phỏng cục bộ. Mật khẩu mẫu chung: <code className="px-1.5 py-0.5 rounded bg-black/40 text-amber-300 font-mono">Scholyx2026!</code>. Bạn có thể đăng nhập bằng các tài khoản mẫu hoặc tạo tài khoản mới.
           </p>
         </div>
 
@@ -137,7 +112,7 @@ export const AuthLoginScreen: React.FC<AuthLoginScreenProps> = ({ onNavigate }) 
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Tối thiểu 8 ký tự (BR-ACC-02)"
+                placeholder="Tối thiểu 8 ký tự"
                 className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#0a0e22] border border-white/10 text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none transition"
               />
               <button
@@ -178,40 +153,6 @@ export const AuthLoginScreen: React.FC<AuthLoginScreenProps> = ({ onNavigate }) 
             )}
           </button>
         </form>
-
-        {/* Quick Test Logins for SRS inspection */}
-        <div className="p-3.5 rounded-2xl bg-[#080c1d] border border-white/5 space-y-2">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Đăng nhập thử nghiệm nhanh theo vai trò:</span>
-          </div>
-          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-            <button
-              onClick={() => handleQuickDemoLogin('student_free')}
-              className="p-2 rounded-lg bg-indigo-950/40 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-900/50 transition font-semibold"
-            >
-              1. Học Sinh (Miễn phí)
-            </button>
-            <button
-              onClick={() => handleQuickDemoLogin('student_vip')}
-              className="p-2 rounded-lg bg-amber-950/40 border border-amber-500/20 text-amber-300 hover:bg-amber-900/50 transition font-semibold"
-            >
-              2. Học Sinh (VIP Pass)
-            </button>
-            <button
-              onClick={() => handleQuickDemoLogin('qtnd')}
-              className="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-900/50 transition font-semibold"
-            >
-              3. QTND (Giáo viên)
-            </button>
-            <button
-              onClick={() => handleQuickDemoLogin('qtv')}
-              className="p-2 rounded-lg bg-rose-950/40 border border-rose-500/20 text-rose-300 hover:bg-rose-900/50 transition font-semibold"
-            >
-              4. Quản Trị Viên (QTV)
-            </button>
-          </div>
-        </div>
 
         {/* Links to Register & OTP */}
         <div className="text-center space-y-2 pt-2 border-t border-white/5 text-xs text-slate-400">

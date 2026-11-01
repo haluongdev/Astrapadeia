@@ -231,7 +231,7 @@ export const LearningModule: React.FC<LearningModuleProps> = ({
                     ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                     : 'bg-white/5 text-slate-400 hover:text-white border-white/10'
                 }`}
-                title="Lưu vào danh sách yêu thích (FR-CONT-07)"
+                title="Lưu vào danh sách yêu thích"
               >
                 <Bookmark className="w-4 h-4 fill-current" />
               </button>
@@ -374,7 +374,7 @@ export const LearningModule: React.FC<LearningModuleProps> = ({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-400">
-                      Ghi chú được tự động lưu vào bộ nhớ cá nhân của bạn (FR-CONT-08)
+                      Ghi chú được tự động lưu vào bộ nhớ cá nhân của bạn
                     </span>
                     <button
                       onClick={handleSaveNote}

@@ -47,7 +47,7 @@ export const SCREEN_REGISTRY: ScreenMetadata[] = [
     title: 'Kích hoạt OTP',
     path: '/auth/verify-otp',
     category: 'Xác thực & Tài khoản',
-    description: 'Xác thực mã OTP 6 số gửi qua Email/SMS với đồng hồ đếm lùi 10 phút (BR-ACC-04).',
+    description: 'Xác thực mã OTP 6 số gửi qua Email/SMS với đồng hồ đếm lùi 10 phút.',
     iconName: 'ShieldCheck',
     allowedRoles: ['guest', 'student'],
     sourceScreens: 'Đăng ký (03), Quên mật khẩu (05)',
@@ -155,7 +155,7 @@ export const SCREEN_REGISTRY: ScreenMetadata[] = [
     title: 'Kết quả luyện & sổ lỗi',
     path: '/practice/results',
     category: 'Luyện tập & Sổ lỗi',
-    description: 'Điểm số theo thang chuẩn, phân tích đúng/sai, lời giải chi tiết và sổ câu sai tự động thu thập (FR-PRAC-09).',
+    description: 'Điểm số theo thang chuẩn, phân tích đúng/sai, lời giải chi tiết và sổ câu sai tự động thu thập.',
     iconName: 'AlertOctagon',
     allowedRoles: ['student'],
     sourceScreens: 'Không gian luyện tập (11), Kết quả thi thử (15), Trang chủ (01), Navbar',
@@ -362,7 +362,7 @@ export const SCREEN_REGISTRY: ScreenMetadata[] = [
     title: 'Tổng quan & tài khoản',
     path: '/admin/overview',
     category: 'Quản trị hệ thống (QTV)',
-    description: 'Thống kê vận hành hệ thống, danh sách tài khoản người dùng, chức năng khóa/mở khóa bắt buộc nhập lý do (BR-ACC-03) và cấp VIP.',
+    description: 'Thống kê vận hành hệ thống, danh sách tài khoản người dùng, chức năng khóa/mở khóa bắt buộc nhập lý do và cấp VIP.',
     iconName: 'Users',
     allowedRoles: ['qtv'],
     sourceScreens: 'Navbar (QTV), Đăng nhập (02)',
@@ -480,11 +480,11 @@ export function canAccessScreen(
 
   // 3. Role authorization check: user's role must be listed in allowedRoles
   if (!meta.allowedRoles.includes(user.role as any)) {
-    let msg = 'Bạn không có quyền truy cập màn hình này theo chính sách phân quyền BR-RBAC-02.';
+    let msg = 'Bạn không có quyền truy cập màn hình này theo chính sách phân quyền.';
     if (user.role === 'qtnd') {
       msg = 'Tài khoản Quản Trị Nội Dung (QTND) chỉ có quyền biên soạn và kiểm duyệt học liệu, không có quyền quản trị hệ thống hay làm bài thi của học sinh.';
     } else if (user.role === 'student') {
-      msg = 'Tài khoản Học sinh không có quyền truy cập không gian Quản trị theo quy định phân quyền BR-RBAC-02.';
+      msg = 'Tài khoản Học sinh không có quyền truy cập không gian Quản trị theo quy định phân quyền.';
     } else if (user.role === 'qtv') {
       msg = 'Màn hình này không nằm trong phạm vi chức năng quản trị hệ thống của QTV theo phân quyền SRS.';
     }
@@ -514,5 +514,3 @@ export function canAccessScreen(
   // 5. Authorized
   return { allowed: true, message: `Khả dụng cho vai trò ${user.role}` };
 }
-
-

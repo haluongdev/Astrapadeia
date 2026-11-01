@@ -90,15 +90,6 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ currentScreenId, onNav
             </>
           )}
         </button>
-
-        <button
-          onClick={() => onNavigate('system-flow')}
-          className="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-semibold text-[11px] flex items-center gap-1 transition interactive-bounce"
-          title="Mở bản đồ luồng 30 màn hình Figma"
-        >
-          <Sparkles className="w-3 h-3 text-cyan-400" />
-          <span>Bản đồ luồng (00)</span>
-        </button>
       </div>
     </div>
   );

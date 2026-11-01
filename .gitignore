@@ -1,0 +1,19 @@
+
+# Scholyx integration
+**/node_modules/
+**/dist/
+**/build/
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+**/test-results/
+**/playwright-report*/
+**/*.bak
+**/*.backup-*
+**/*.bak-*
+*.dump
+*.backup
+*.zip
+
+tests/gd3/gd3-results.json

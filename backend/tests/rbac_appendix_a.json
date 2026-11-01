@@ -1,0 +1,245 @@
+[
+  {
+    "id": "public.view",
+    "module": "PUBLIC",
+    "description": "Xem nội dung công khai",
+    "guest": true,
+    "student": true,
+    "qtnd": true,
+    "qtv": true
+  },
+  {
+    "id": "public.try",
+    "module": "PUBLIC",
+    "description": "Làm thử câu hỏi công khai",
+    "guest": true,
+    "student": true,
+    "qtnd": false,
+    "qtv": false
+  },
+  {
+    "id": "content.published.view",
+    "module": "CONTENT",
+    "description": "Xem nội dung đã xuất bản",
+    "guest": false,
+    "student": true,
+    "qtnd": true,
+    "qtv": false
+  },
+  {
+    "id": "auth.access",
+    "module": "AUTH",
+    "description": "Đăng ký, đăng nhập, khôi phục mật khẩu",
+    "guest": true,
+    "student": true,
+    "qtnd": true,
+    "qtv": true
+  },
+  {
+    "id": "profile.self",
+    "module": "PROFILE",
+    "description": "Hồ sơ cá nhân, đổi mật khẩu, yêu cầu xóa",
+    "guest": false,
+    "student": true,
+    "qtnd": true,
+    "qtv": true
+  },
+  {
+    "id": "study.practice",
+    "module": "STUDY",
+    "description": "Luyện tập, thi thử, xem kết quả cá nhân",
+    "guest": false,
+    "student": true,
+    "qtnd": false,
+    "qtv": false
+  },
+  {
+    "id": "study.review",
+    "module": "STUDY",
+    "description": "Ôn tập tổng hợp",
+    "guest": false,
+    "student": true,
+    "qtnd": false,
+    "qtv": false
+  },
+  {
+    "id": "study.progress",
+    "module": "STUDY",
+    "description": "Tiến độ và lộ trình cá nhân hóa",
+    "guest": false,
+    "student": true,
+    "qtnd": false,
+    "qtv": false
+  },
+  {
+    "id": "ai.self",
+    "module": "AI",
+    "description": "Trợ lý AI, lịch sử hội thoại cá nhân",
+    "guest": false,
+    "student": true,
+    "qtnd": false,
+    "qtv": false
+  },
+  {
+    "id": "feedback.send",
+    "module": "FEEDBACK",
+    "description": "Nhận thông báo, gửi phản hồi",
+    "guest": false,
+    "student": true,
+    "qtnd": true,
+    "qtv": false
+  },
+  {
+    "id": "feedback.manage",
+    "module": "FEEDBACK",
+    "description": "Xử lý phản hồi/báo lỗi nội dung",
+    "guest": false,
+    "student": false,
+    "qtnd": true,
+    "qtv": false
+  },
+  {
+    "id": "cms.lessons",
+    "module": "CMS",
+    "description": "Quản lý môn, chủ đề, bài học",
+    "guest": false,
+    "student": false,
+    "qtnd": true,
+    "qtv": false
+  },
+  {
+    "id": "cms.questions",
+    "module": "CMS",
+    "description": "Quản lý câu hỏi, cấu trúc đề, đề thi",
+    "guest": false,
+    "student": false,
+    "qtnd": true,
+    "qtv": false
+  },
+  {
+    "id": "cms.grading",
+    "module": "CMS",
+    "description": "Chấm tự luận, chấm lại điểm",
+    "guest": false,
+    "student": false,
+    "qtnd": true,
+    "qtv": false
+  },
+  {
+    "id": "cms.rag",
+    "module": "CMS",
+    "description": "Quản lý tài liệu RAG",
+    "guest": false,
+    "student": false,
+    "qtnd": true,
+    "qtv": false
+  },
+  {
+    "id": "cms.rules",
+    "module": "CMS",
+    "description": "Cấu hình quy chế đề thi",
+    "guest": false,
+    "student": false,
+    "qtnd": true,
+    "qtv": false
+  },
+  {
+    "id": "cms.reports",
+    "module": "CMS",
+    "description": "Báo cáo chất lượng nội dung",
+    "guest": false,
+    "student": false,
+    "qtnd": true,
+    "qtv": false
+  },
+  {
+    "id": "admin.accounts",
+    "module": "ADMIN",
+    "description": "Quản lý tài khoản",
+    "guest": false,
+    "student": false,
+    "qtnd": false,
+    "qtv": true
+  },
+  {
+    "id": "rbac.manage",
+    "module": "RBAC",
+    "description": "Quản lý vai trò và quyền",
+    "guest": false,
+    "student": false,
+    "qtnd": false,
+    "qtv": true
+  },
+  {
+    "id": "system.stats",
+    "module": "SYSTEM",
+    "description": "Xem thống kê hệ thống",
+    "guest": false,
+    "student": false,
+    "qtnd": false,
+    "qtv": true
+  },
+  {
+    "id": "system.config",
+    "module": "SYSTEM",
+    "description": "Cấu hình tham số hệ thống",
+    "guest": false,
+    "student": false,
+    "qtnd": false,
+    "qtv": true
+  },
+  {
+    "id": "system.audit",
+    "module": "SYSTEM",
+    "description": "Xem audit log",
+    "guest": false,
+    "student": false,
+    "qtnd": false,
+    "qtv": true
+  },
+  {
+    "id": "system.deletions",
+    "module": "SYSTEM",
+    "description": "Xử lý yêu cầu xóa dữ liệu cá nhân",
+    "guest": false,
+    "student": false,
+    "qtnd": false,
+    "qtv": true
+  },
+  {
+    "id": "vip.self",
+    "module": "VIP",
+    "description": "Xem/mua/gia hạn VIP, giao dịch cá nhân",
+    "guest": false,
+    "student": true,
+    "qtnd": false,
+    "qtv": false
+  },
+  {
+    "id": "vip.plans",
+    "module": "VIP",
+    "description": "Quản lý gói, quyền lợi, mã giảm giá",
+    "guest": false,
+    "student": false,
+    "qtnd": false,
+    "qtv": true
+  },
+  {
+    "id": "vip.transactions",
+    "module": "VIP",
+    "description": "Đối soát, hoàn tiền, cấp/thu hồi VIP",
+    "guest": false,
+    "student": false,
+    "qtnd": false,
+    "qtv": true
+  },
+  {
+    "id": "vip.revenue",
+    "module": "VIP",
+    "description": "Báo cáo doanh thu",
+    "guest": false,
+    "student": false,
+    "qtnd": false,
+    "qtv": true
+  }
+]

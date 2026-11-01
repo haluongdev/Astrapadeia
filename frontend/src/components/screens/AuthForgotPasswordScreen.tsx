@@ -12,6 +12,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { ScreenId } from '../../types';
+import { authApi } from '../../services/authApi';
 
 interface AuthForgotPasswordScreenProps {
   onNavigate: (screenId: ScreenId) => void;
@@ -26,43 +27,90 @@ export const AuthForgotPasswordScreen: React.FC<AuthForgotPasswordScreenProps> =
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [devResetOtp, setDevResetOtp] = useState('');
+  const [showDevResetOtp, setShowDevResetOtp] = useState(false);
 
-  const handleSendRequest = (e: React.FormEvent) => {
+  // SCHOLYX_REAL_PASSWORD_RESET_V1
+  const handleSendRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    if (!email.trim() || !email.includes('@')) {
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
       setErrorMessage('Vui lòng nhập địa chỉ email hợp lệ đã đăng ký.');
       return;
     }
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setStep(2);
-    }, 600);
-  };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+    setIsLoading(true);
+
+    try {
+      const result = await authApi.forgotPassword(normalizedEmail);
+      setEmail(normalizedEmail);
+      setStep(2);
+
+      // Only show test OTP on a locally served development frontend.
+      const localFrontend = ['localhost', '127.0.0.1']
+        .includes(window.location.hostname);
+
+      if (import.meta.env.DEV && localFrontend && result.devOtp) {
+        setDevResetOtp(result.devOtp);
+        setShowDevResetOtp(true);
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Không thể gửi yêu cầu khôi phục mật khẩu.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    if (!resetCode.trim()) {
-      setErrorMessage('Vui lòng nhập mã xác nhận 6 số từ email.');
+
+    if (!/^\d{6}$/.test(resetCode.trim())) {
+      setErrorMessage('Vui lòng nhập mã xác nhận gồm đúng 6 chữ số.');
       return;
     }
+
     if (newPassword.length < 8) {
-      setErrorMessage('Mật khẩu mới phải có tối thiểu 8 ký tự (BR-ACC-02).');
+      setErrorMessage('Mật khẩu mới phải có tối thiểu 8 ký tự.');
       return;
     }
+
     if (newPassword !== confirmPassword) {
       setErrorMessage('Xác nhận mật khẩu không trùng khớp.');
       return;
     }
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setStep(3);
-    }, 600);
-  };
 
+    setIsLoading(true);
+
+    try {
+      await authApi.resetPassword(
+        email.trim().toLowerCase(),
+        resetCode.trim(),
+        newPassword
+      );
+
+      setResetCode('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setDevResetOtp('');
+      setShowDevResetOtp(false);
+      setStep(3);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Đặt lại mật khẩu thất bại.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="max-w-md mx-auto my-6 p-6 sm:p-8 rounded-3xl cosmic-card border border-indigo-500/30 relative shadow-2xl">
       <div className="text-center space-y-2 mb-6">
@@ -72,7 +120,7 @@ export const AuthForgotPasswordScreen: React.FC<AuthForgotPasswordScreenProps> =
         <div className="flex items-center justify-center gap-1.5 text-xs uppercase font-bold text-cyan-400">
           <span className="font-mono">Màn hình 05</span>
           <span>•</span>
-          <span>Khôi phục Mật khẩu (FR-AUTH-07, 08)</span>
+          <span>Khôi phục Mật khẩu</span>
         </div>
         <h2 className="text-2xl font-extrabold text-white font-space">
           {step === 1 && 'Khôi Phục Mật Khẩu'}
@@ -86,6 +134,44 @@ export const AuthForgotPasswordScreen: React.FC<AuthForgotPasswordScreenProps> =
         </p>
       </div>
 
+      {import.meta.env.DEV &&
+        ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
+        showDevResetOtp &&
+        devResetOtp &&
+        step === 2 && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="OTP khôi phục thử nghiệm"
+              className="w-full max-w-sm rounded-3xl border border-cyan-500/40 bg-[#11172e] p-6 shadow-2xl text-center space-y-4"
+            >
+              <div className="text-xs font-bold uppercase tracking-widest text-cyan-300">
+                Scholyx - DEV RESET OTP
+              </div>
+
+              <p className="text-sm text-slate-300">
+                Mã khôi phục mật khẩu thử nghiệm:
+              </p>
+
+              <div className="rounded-2xl bg-black/30 border border-white/10 p-4 text-3xl font-mono font-extrabold tracking-[0.25em] text-cyan-200">
+                {devResetOtp}
+              </div>
+
+              <p className="text-xs text-slate-400">
+                Có hiệu lực 10 phút. Chỉ sử dụng trên localhost development.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setShowDevResetOtp(false)}
+                className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-3 text-white text-sm font-bold transition"
+              >
+                Đóng và nhập OTP
+              </button>
+            </div>
+          </div>
+        )}
       {errorMessage && (
         <div className="p-3 mb-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -146,7 +232,7 @@ export const AuthForgotPasswordScreen: React.FC<AuthForgotPasswordScreenProps> =
                 type={showPassword ? 'text' : 'password'}
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
-                placeholder="Tối thiểu 8 ký tự, chữ & số (BR-ACC-02)"
+                placeholder="Tối thiểu 8 ký tự, chữ & số"
                 className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#0a0e22] border border-white/10 text-white focus:border-cyan-400 focus:outline-none"
               />
               <button
@@ -190,7 +276,7 @@ export const AuthForgotPasswordScreen: React.FC<AuthForgotPasswordScreenProps> =
           <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
           <h3 className="text-lg font-bold text-white">Đổi Mật Khẩu Thành Công!</h3>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Các phiên đăng nhập cũ trên thiết bị khác đã được thu hồi an toàn (FR-AUTH-08). Bạn có thể đăng nhập ngay với mật khẩu mới.
+            Các phiên đăng nhập cũ trên thiết bị khác đã được thu hồi an toàn. Bạn có thể đăng nhập ngay với mật khẩu mới.
           </p>
           <button
             onClick={() => onNavigate('auth-login')}
